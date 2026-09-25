@@ -34,7 +34,8 @@ jobs:
 
   # Where the coupling to Home Assistant internals is tested: the HTTP store,
   # MQTT's entry version, the network store, the registries. This is the job
-  # that goes red when an upgrade moves one of them.
+  # that fails when Home Assistant's side of one of them isn't what its Kind
+  # was written against.
   integration:
     runs-on: ubuntu-latest
     steps:

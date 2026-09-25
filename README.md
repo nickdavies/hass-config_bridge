@@ -1,32 +1,42 @@
 # Config bridge
 
-Keep Home Assistant settings in YAML even after Home Assistant has moved them
-out of `configuration.yaml`.
+Keep Home Assistant settings in YAML when Home Assistant itself keeps them
+somewhere else.
 
-Home Assistant keeps moving settings into config entries, private `.storage`
-files and registries, where they're set from the UI and stop being
-reviewable, reproducible or in git. MQTT's broker went years ago. `http:` is
-imported once and then ignored (and the key breaks in 2027.2). Areas never had
-YAML at all. This component reads a `config_bridge:` block and makes Home
-Assistant match it on every boot. Anything changed in the UI is put back at
-the next restart.
+Home Assistant keeps some settings only in config entries, private
+`.storage` files and registries, where they are set from the UI and are not
+reviewable, reproducible or in git: MQTT's broker connection, the HTTP
+server's settings, the network adapters discovery listens on, and areas.
+This component reads a `config_bridge:` block and makes Home Assistant match
+it on every boot. Anything changed in the UI is put back at the next
+restart.
 
 ```yaml
 config_bridge:
   http:
     use_x_forwarded_for: true
-    trusted_proxies: [10.244.0.0/16, 10.96.0.0/12]
+    trusted_proxies:
+      - 10.244.0.0/16
+      - 10.96.0.0/12
   mqtt:
     broker: mosquitto.automation.svc.cluster.local
     username: !secret mqtt_username
     password: !secret mqtt_password
   network:
-    adapters: [eth0, 192.168.20.0/24]
+    adapters:
+      - eth0
+      - 192.168.20.0/24
   areas:
     mode: exclusive
     items:
-      kitchen: { name: Kitchen, icon: mdi:stove, floor_id: ground }
-      lounge: { name: Living Room, aliases: [family room] }
+      kitchen:
+        name: Kitchen
+        icon: mdi:stove
+        floor_id: ground
+      lounge:
+        name: Living Room
+        aliases:
+          - family room
 ```
 
 It is ordinary YAML, so `!secret`, `!include` and packages all work. The
@@ -35,8 +45,8 @@ setting defined twice is an error.
 
 ## How it behaves
 
-Each thing it manages is a **kind**. Each kind is reconciled at boot, inside
-its own error boundary, and ends up in one of three states:
+Each thing it manages is an **object type**. Each object type is reconciled
+at boot, inside its own error boundary, and ends up in one of three states:
 
 - **In sync:** nothing to do.
 - **Applied:** the writes were made, and re-reading Home Assistant confirmed
@@ -44,39 +54,40 @@ its own error boundary, and ends up in one of three states:
 - **Reported:** nothing was written. A repair issue (Settings → Repairs) gives
   the reason and the exact changes it would have made, with secrets redacted.
 
-A kind reports instead of applying in three cases:
+An object type reports instead of applying in three cases:
 
 - `report_only: true` is set on it.
 - It refuses the plan itself, for example an HTTP config Home Assistant
   couldn't bind.
 - Anything goes wrong: an unfamiliar storage version, a live object with
   settings the bridge doesn't know, a reference to something that doesn't
-  exist, or an unexpected exception.
+  exist, a module that fails to import, or an unexpected exception.
 
-It is built to degrade. The bridge leans on Home Assistant internals that
-will move. When one does, that kind goes quiet and says so, the others carry
-on, and Home Assistant's setup never fails because of it. Nothing sticks:
-every boot tries again, so updating the bridge is enough to resume.
+The object types read and write Home Assistant internals, and each one
+checks that the internals it uses are the ones it was written against. When
+they aren't, that object type reports and says what differs, the others
+carry on, and Home Assistant's setup never fails because of it. Nothing
+sticks: every boot tries again.
 
-Typos are different. Every kind's YAML is checked by `CONFIG_SCHEMA`, so
-`check_config` rejects a bad block in CI before it ships. Home Assistant's
-*own* rules for a kind (the HTTP store's schema, for example) are applied
-inside that kind's boundary instead, because they're what an upgrade can
-change.
+Typos are different. Every object type's YAML is checked by
+`CONFIG_SCHEMA`, so `check_config` rejects a bad block in CI before it
+ships. Home Assistant's *own* rules for an object type (the HTTP store's
+schema, for example) are applied inside that object type's boundary
+instead, so that a mismatch there stops only that object type.
 
-## Kinds
+## Object types
 
 ### `http`
 
-The settings the `http:` block used to take (`base_url` excepted), in the same
-shape. Anything left out is Home Assistant's default. The whole config comes
-from the YAML.
+The settings of Home Assistant's `http:` key (`base_url` excepted), in the
+same shape. Anything left out is Home Assistant's default. The whole config
+comes from the YAML.
 
-The HTTP server binds before any custom component loads, so a change can
-never apply on the boot where the bridge runs. Home Assistant's own mechanism
-for this is a store with a `stable` slot and a `pending` trial for the next
-boot. If nothing promotes the trial within five minutes, Home Assistant
-reverts it and restarts. The bridge works with that mechanism:
+The HTTP server binds before any custom component loads, so a change never
+applies on the boot where the bridge runs. Home Assistant's own mechanism for
+this is a store with a `stable` slot and a `pending` trial for the next boot.
+If nothing promotes the trial within five minutes, Home Assistant reverts it
+and restarts. The bridge works with that mechanism:
 
 - **The YAML differs from `stable`:** it stages the YAML as `pending`. This
   takes effect at the next restart. **The bridge never restarts Home
@@ -149,14 +160,16 @@ update, not a recreate that would drop every device's assignment.
 
 ```yaml
 areas:
-  mode: exclusive        # or owned — required
+  mode: exclusive                   # or owned; required
   items:
     kitchen:
       name: Kitchen                 # required
       icon: mdi:stove
       floor_id: ground              # must exist
-      labels: [downstairs]          # label ids; must exist
-      aliases: [cooking]
+      labels:                       # label ids; must exist
+        - downstairs
+      aliases:
+        - cooking
       picture: /local/kitchen.jpg
       temperature_entity_id: sensor.kitchen_temperature
       humidity_entity_id: sensor.kitchen_humidity
@@ -185,40 +198,75 @@ is written:
 1. Add an empty `config_bridge:` block and restart. That loads the component
    with nothing to manage.
 2. Call `config_bridge.export` from Developer Tools → Actions. It returns what
-   Home Assistant has now for every kind, in this YAML's shape, with secrets
-   redacted. For `network`, it also lists the available adapters and their
-   subnets.
-3. Paste that into the YAML, with `report_only: true` on each kind, and deploy.
-4. Check Settings → Repairs. A kind with no issue is in sync. An issue lists
-   exactly what would change.
-5. Remove `report_only` from each kind once its diff is what you meant.
+   Home Assistant has for every object type, in this YAML's shape, with
+   secrets redacted. For `network`, it also lists the available adapters and
+   their subnets.
+3. Paste that into the YAML, with `report_only: true` on each object type, and
+   deploy.
+4. Check Settings → Repairs. An object type with no issue is in sync. An issue
+   lists exactly what would change.
+5. Remove `report_only` from each object type once its diff is what you meant.
 
-## Adding a kind
+## Layout
 
-1. **The YAML's schema:** in `model/schema.py`, added to `KIND_SCHEMAS`.
-2. **The rendering and the decisions:** in `model/`. No Home Assistant imports
-   here; this is what the unit tests cover.
-3. **The adapter:** in `kinds/`, a `Kind` subclass that plans, applies,
-   verifies and exports, registered in `kinds/__init__.py`. Import Home
-   Assistant internals inside its methods rather than at module level. A
-   renamed module then fails that kind, not the whole bridge.
-4. **A guard:** check the internal it depends on (a storage version, an entry
-   version) is the one it was written against, and raise `KindError` if not.
-   That turns an upgrade that moved it into a report instead of a bad write.
+```
+custom_components/config_bridge/
+├── __init__.py          CONFIG_SCHEMA and setup: wires the two halves together
+├── lib/                 the engine every object type shares
+│   ├── object_type.py   ObjectType: how an object type is registered
+│   ├── kind.py          Kind: the interface an object type's HA side implements
+│   ├── schema.py        the config_bridge: block, from the object types' schemas
+│   ├── validators.py    validators the schemas share
+│   ├── diff.py          field-by-field diffs, with secrets redacted
+│   ├── plan.py          plans, and how reports render them
+│   ├── collection.py    exclusive and owned planning for keyed collections
+│   ├── runner.py        error boundaries, repair issues, the export action
+│   └── ledger.py        the state object types keep between boots
+└── object_types/
+    ├── __init__.py      OBJECT_TYPES: the registry
+    └── <name>/
+        ├── __init__.py  OBJECT_TYPE: the name, the schema and the Kind
+        ├── model.py     the YAML's schema and every decision; no HA imports
+        └── kind.py      the Kind: reads HA for the model, writes its plan back
+```
+
+Only `lib/runner.py`, `lib/ledger.py` and each object type's `kind.py` import
+Home Assistant, so everything else is unit tested with pytest and probatio
+alone. `tests/test_no_ha_imports.py` enforces that. The tests follow the same
+split: `tests/lib/` and `tests/object_types/` for the unit tests,
+`tests_integration/test_runner.py` and `tests_integration/object_types/` for
+the integration tests.
+
+The runner imports each Kind inside that object type's error boundary, so a
+Kind whose Home Assistant imports fail stops only its own object type.
+
+## Adding an object type
+
+1. **The model:** `object_types/<name>/model.py`, with the YAML's `SCHEMA`
+   (without `report_only`; the engine adds that) and the rendering and
+   decisions. No Home Assistant imports; this is what the unit tests cover.
+2. **The Kind:** `object_types/<name>/kind.py`, a `Kind` subclass that plans,
+   applies, verifies and exports. It reads Home Assistant into plain data for
+   the model, and writes the model's plan back.
+3. **A guard:** the Kind checks that the internal it depends on (a storage
+   version, an entry version) is the one it was written against, and raises
+   `KindError` if not. That turns a mismatch into a report instead of a bad
+   write.
+4. **The registration:** `object_types/<name>/__init__.py` defines
+   `OBJECT_TYPE`, and `object_types/__init__.py` adds it to `OBJECT_TYPES`.
 
 ## What it depends on
 
-| kind | Home Assistant internal |
+| object type | Home Assistant internal |
 |---|---|
-| `http` | `components.http.config`: the store, storage version 2.2 (new in 2026.7, likely to change around 2027.2) |
+| `http` | `components.http.config`: the store, storage version 2.2 |
 | `mqtt` | `hass.config_entries`; MQTT entry version 2.1 |
 | `network` | `components.network.network.async_get_network`; storage version 1 |
 | `areas` | the area, floor and label registries (public helpers) |
 
-When a kind starts reporting after an upgrade, its repair issue names what
-moved. The integration tests run against the Home Assistant release homelab
-deploys, so a release that moves something should turn CI red before it
-reaches the cluster.
+When an object type reports because one of these differs, its repair issue
+names what differs. The integration tests run against the Home Assistant
+release homelab deploys, pinned in `.github/workflows/ci.yml`.
 
 ## Development
 
@@ -226,7 +274,7 @@ Schemas are written with probatio, the validation library Home Assistant
 uses (it answers to `import voluptuous` inside Home Assistant as well). The
 unit tests need only pytest and probatio. The integration tests need Python
 3.14.2 or later, because they run against the Home Assistant release homelab
-deploys, pinned in `.github/workflows/ci.yml`.
+deploys.
 
 ```sh
 pip install pytest probatio==0.11.4 pytest-homeassistant-custom-component==0.13.365 tzdata ruff==0.16.8

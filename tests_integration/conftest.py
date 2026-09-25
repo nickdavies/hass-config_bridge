@@ -2,9 +2,9 @@
 pytest-homeassistant-custom-component, pinned to the version homelab deploys.
 
 The unit tests cover the decisions. These cover what only a running Home
-Assistant can show: that the adapters read and write the real stores and
-registries the way the decisions assume, and that one kind failing leaves
-the others alone.
+Assistant can show: that the Kinds read and write the real stores and
+registries the way the decisions assume, and that one object type failing
+leaves the others alone.
 """
 
 from __future__ import annotations
@@ -59,11 +59,14 @@ def setup_bridge(hass: HomeAssistant) -> SetupBridge:
     return setup
 
 
-def report(hass: HomeAssistant, kind: str) -> ir.IssueEntry | None:
-    """The repair issue a kind raised when it didn't apply, if it did."""
-    return ir.async_get(hass).async_get_issue(DOMAIN, f"report_{kind}")
+def report(hass: HomeAssistant, object_type: str) -> ir.IssueEntry | None:
+    """The repair issue an object type raised when it didn't apply, if it did."""
+    return ir.async_get(hass).async_get_issue(DOMAIN, f"report_{object_type}")
 
 
 def ledger_storage(data: dict[str, Any]) -> dict[str, Any]:
-    """`.storage/config_bridge` as the bridge writes it, for `hass_storage`."""
+    """`.storage/config_bridge` as the bridge writes it, for `hass_storage`.
+
+    `data` maps each object type's name to its own state.
+    """
     return {"version": 1, "minor_version": 1, "key": DOMAIN, "data": data}

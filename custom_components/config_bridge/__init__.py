@@ -1,20 +1,24 @@
-"""Config bridge: YAML as the source of truth for config HA now keeps elsewhere.
+"""Config bridge: Home Assistant settings kept in YAML and applied at every boot.
 
-Home Assistant keeps moving settings out of `configuration.yaml` — into
-config entries, into private `.storage` files, into registries — where they
-stop being reviewable, reproducible and in git. This integration reads a
+Home Assistant keeps some settings only in config entries, `.storage` files
+and registries, where they are set from the UI. This integration reads a
 `config_bridge:` block and, on every boot, makes Home Assistant match it.
 
-Each thing it manages is a *kind* (`http`, `mqtt`, `network`, `areas`), and
-each kind is reconciled inside its own error boundary: if Home Assistant
-changes something under one of them, that kind stops writing and reports —
-a repair issue with the reason and the changes it would have made — and the
-others carry on. Nothing about that is sticky; the next boot tries again.
+It has two halves:
 
-**This module imports no Home Assistant at runtime.** Importing
-`custom_components.config_bridge.model` runs this file first, so the
-framework imports are either `TYPE_CHECKING`-only or done inside
-`async_setup`. `tests/test_no_ha_imports.py` enforces it.
+- `object_types/`: one package per thing the bridge manages (`http`, `mqtt`,
+  `network`, `areas`), each with its schema and decisions in `model.py` and
+  the code that reads and writes Home Assistant in `kind.py`.
+- `lib/`: what they share: the runner and its error boundaries, plans,
+  diffs, collection planning, shared validators and the ledger.
+
+This module wires the two together: `CONFIG_SCHEMA` from the object types'
+schemas, and a setup that hands the configured object types to the runner.
+
+**This module imports no Home Assistant at runtime.** Importing any module
+of the integration runs this file first, so the framework imports are
+either `TYPE_CHECKING`-only or done inside `async_setup`.
+`tests/test_no_ha_imports.py` enforces it.
 """
 
 from __future__ import annotations
@@ -24,22 +28,22 @@ from typing import TYPE_CHECKING
 import probatio as vol
 
 from .const import DOMAIN
-from .model.schema import BRIDGE_SCHEMA
+from .lib.schema import bridge_schema
+from .object_types import OBJECT_TYPES
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.typing import ConfigType
 
-# Strict: an unknown kind or setting is an error, so `check_config` catches a
-# typo before it ships. Only the YAML's shape is checked here — see
-# `model/schema.py` for why Home Assistant's own rules wait until each kind
-# runs.
-CONFIG_SCHEMA = vol.Schema({DOMAIN: BRIDGE_SCHEMA}, extra=vol.ALLOW_EXTRA)
+# Strict: an unknown object type or setting is an error, so `check_config`
+# catches a typo before it ships. `lib/schema.py` says what is checked here
+# and what is left to each object type.
+CONFIG_SCHEMA = vol.Schema({DOMAIN: bridge_schema(OBJECT_TYPES)}, extra=vol.ALLOW_EXTRA)
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Reconcile every configured kind. Never fails setup because of one."""
-    from .bridge import async_setup_bridge  # noqa: PLC0415
+    """Reconcile every configured object type. Never fails setup because of one."""
+    from .lib.runner import async_setup_bridge  # noqa: PLC0415
 
-    await async_setup_bridge(hass, config.get(DOMAIN) or {})
+    await async_setup_bridge(hass, config.get(DOMAIN) or {}, OBJECT_TYPES)
     return True
