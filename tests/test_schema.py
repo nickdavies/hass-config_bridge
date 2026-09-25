@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-import voluptuous as vol
+import probatio as vol
 
 from custom_components.config_bridge.model.schema import (
     AREAS_SCHEMA,

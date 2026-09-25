@@ -8,7 +8,7 @@ part that can change under us on an upgrade — and a failing `CONFIG_SCHEMA`
 stops the whole integration, where a kind failing on its own only stops
 itself.
 
-Plain voluptuous rather than `config_validation`, for the same reason the
+Plain probatio rather than `config_validation`, for the same reason the
 rest of `model/` avoids Home Assistant: the unit tests run without it. Where
 a validator stands in for one of HA's, it says which.
 """
@@ -20,7 +20,7 @@ import re
 from collections.abc import Callable, Mapping
 from typing import Any, Final
 
-import voluptuous as vol
+import probatio as vol
 
 from ..const import CONF_REPORT_ONLY
 from .areas import duplicate_names

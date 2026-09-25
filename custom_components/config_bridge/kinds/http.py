@@ -15,7 +15,7 @@ from __future__ import annotations
 from types import ModuleType
 from typing import Any, Final, cast
 
-import voluptuous as vol
+import probatio as vol
 from homeassistant.core import HomeAssistant
 
 from ..model import http as model

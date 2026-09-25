@@ -7,7 +7,7 @@ adapters in `kinds/` only read Home Assistant into plain mappings and write
 the result back.
 
 Keeping this side free of Home Assistant imports is what lets it be unit
-tested with nothing but pytest and voluptuous — and it is also the hedge
+tested with nothing but pytest and probatio — and it is also the hedge
 against Home Assistant closing off an internal API: the decisions would
 survive a move to a different way of reading and writing, whether that is
 the websocket API or editing `.storage` before boot.

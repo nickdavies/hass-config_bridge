@@ -222,12 +222,14 @@ reaches the cluster.
 
 ## Development
 
-The unit tests need only pytest and voluptuous. The integration tests need
-Python 3.14.2 or later, because they run against the Home Assistant release
-homelab deploys, pinned in `.github/workflows/ci.yml`.
+Schemas are written with probatio, the validation library Home Assistant
+uses (it answers to `import voluptuous` inside Home Assistant as well). The
+unit tests need only pytest and probatio. The integration tests need Python
+3.14.2 or later, because they run against the Home Assistant release homelab
+deploys, pinned in `.github/workflows/ci.yml`.
 
 ```sh
-pip install pytest pytest-homeassistant-custom-component==0.13.365 voluptuous tzdata ruff==0.16.8
+pip install pytest probatio==0.11.4 pytest-homeassistant-custom-component==0.13.365 tzdata ruff==0.16.8
 python -m pytest tests/ -c tests/pytest.ini
 python -m pytest tests_integration/ -c tests_integration/pytest.ini
 ruff check custom_components/ tests/ tests_integration/
