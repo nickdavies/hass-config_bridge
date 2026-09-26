@@ -23,6 +23,9 @@ HOMELAB = {
         "mode": "exclusive",
         "items": {"kitchen": {"name": "Kitchen", "icon": "mdi:stove"}},
     },
+    "devices": {
+        "items": {"mqtt": {"zigbee2mqtt_0x001788010c6f92e4": {"area_id": "dining"}}}
+    },
     "entities": {"items": {"light.kitchen_lights_all": {"area_id": "kitchen"}}},
 }
 
@@ -37,6 +40,7 @@ def test_every_object_type_is_registered() -> None:
         "mqtt",
         "network",
         "areas",
+        "devices",
         "entities",
     ]
 
