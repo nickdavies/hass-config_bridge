@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install ruff==0.16.8
+      - run: ruff check custom_components/ tests/ tests_integration/
+      - run: ruff format --check custom_components/ tests/ tests_integration/
+
+  # The model imports no Home Assistant, so these need nothing but pytest and
+  # probatio, Home Assistant's validation library, at the version Home
+  # Assistant 2026.9.2 requires. tests/test_no_ha_imports.py is what keeps that
+  # true: install HA here and a stray import would stop being caught.
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install pytest probatio==0.11.4
+      - run: python -m pytest tests/ -v -c tests/pytest.ini
+
+  # Where the coupling to Home Assistant internals is tested: the HTTP store,
+  # MQTT's entry version, the network store, the registries. This is the job
+  # that fails when Home Assistant's side of one of them isn't what its Kind
+  # was written against.
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      # This release installs Home Assistant 2026.9.2, the version homelab
+      # deploys; each release pins exactly one Home Assistant version.
+      - run: pip install pytest pytest-homeassistant-custom-component==0.13.365 tzdata
+      - run: python -m pytest tests_integration/ -v -c tests_integration/pytest.ini

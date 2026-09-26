@@ -1,0 +1,8 @@
+{
+  "domain": "config_bridge",
+  "name": "Config Bridge",
+  "codeowners": ["@nickdavies"],
+  "documentation": "https://github.com/nickdavies/hass-config_bridge",
+  "iot_class": "calculated",
+  "version": "0.1.0"
+}

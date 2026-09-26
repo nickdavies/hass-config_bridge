@@ -1,0 +1,14 @@
+{
+  "issues": {
+    "report": {
+      "title": "Config bridge didn't apply {object_type}",
+      "description": "{reason}\n\nWhat the YAML asks for, that Home Assistant doesn't have:\n\n{changes}\n\nNothing was written for {object_type}; the bridge's other object types are unaffected. It tries again at every restart, and this issue clears once {object_type} matches the YAML."
+    }
+  },
+  "services": {
+    "export": {
+      "name": "Export",
+      "description": "Returns what Home Assistant has for each object type the bridge manages, in the shape of the config_bridge YAML, with secrets redacted. Use it to write the YAML in the first place."
+    }
+  }
+}
