@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import probatio as vol
+import probatio
 import pytest
 
 from custom_components.config_bridge.object_types.areas.model import (
@@ -66,24 +66,24 @@ def test_export_leaves_out_empty_fields() -> None:
 
 
 def test_mode_is_required() -> None:
-    with pytest.raises(vol.Invalid):
+    with pytest.raises(probatio.Invalid):
         SCHEMA({"items": {}})
 
 
 def test_area_ids_must_be_slugs() -> None:
-    with pytest.raises(vol.Invalid) as err:
+    with pytest.raises(probatio.Invalid) as err:
         SCHEMA({"mode": "owned", "items": {"Living Room": {"name": "Living Room"}}})
     assert err.value.path == ["items", "Living Room"]
 
 
 def test_errors_inside_an_area_point_at_it() -> None:
-    with pytest.raises(vol.Invalid) as err:
+    with pytest.raises(probatio.Invalid) as err:
         SCHEMA({"mode": "owned", "items": {"kitchen": {"name": "K", "icon": "stove"}}})
     assert err.value.path[:3] == ["items", "kitchen", "icon"]
 
 
 def test_duplicate_area_names() -> None:
-    with pytest.raises(vol.Invalid, match="lounge"):
+    with pytest.raises(probatio.Invalid, match="lounge"):
         SCHEMA(
             {
                 "mode": "owned",
@@ -111,7 +111,7 @@ def test_area_references_are_ids() -> None:
     )["items"]["kitchen"]
     assert area["labels"] == ["downstairs"]
     assert area["temperature_entity_id"] == "sensor.kitchen_temperature"
-    with pytest.raises(vol.Invalid):
+    with pytest.raises(probatio.Invalid):
         SCHEMA(
             {"mode": "owned", "items": {"k": {"name": "K", "floor_id": "Ground Floor"}}}
         )

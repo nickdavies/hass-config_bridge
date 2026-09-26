@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import probatio as vol
+import probatio
 import pytest
 
 from custom_components.config_bridge.object_types.network.model import (
@@ -64,11 +64,11 @@ def test_describe_adapters() -> None:
 
 
 def test_adapters_are_required_and_may_be_empty() -> None:
-    with pytest.raises(vol.Invalid):
+    with pytest.raises(probatio.Invalid):
         SCHEMA({})
     assert SCHEMA({"adapters": []})["adapters"] == []
 
 
 def test_bad_network_selector() -> None:
-    with pytest.raises(vol.Invalid):
+    with pytest.raises(probatio.Invalid):
         SCHEMA({"adapters": ["192.168.300.0/24"]})

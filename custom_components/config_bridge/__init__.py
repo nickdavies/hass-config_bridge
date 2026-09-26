@@ -25,7 +25,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import probatio as vol
+import probatio
 
 from .const import DOMAIN
 from .lib.schema import bridge_schema
@@ -38,7 +38,9 @@ if TYPE_CHECKING:
 # Strict: an unknown object type or setting is an error, so `check_config`
 # catches a typo before it ships. `lib/schema.py` says what is checked here
 # and what is left to each object type.
-CONFIG_SCHEMA = vol.Schema({DOMAIN: bridge_schema(OBJECT_TYPES)}, extra=vol.ALLOW_EXTRA)
+CONFIG_SCHEMA = probatio.Schema(
+    {DOMAIN: bridge_schema(OBJECT_TYPES)}, extra=probatio.ALLOW_EXTRA
+)
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:

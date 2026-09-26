@@ -18,7 +18,7 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import Any, Final
 
-import probatio as vol
+import probatio
 
 from ...lib.validators import ensure_list, string
 
@@ -35,15 +35,15 @@ def _selector(value: Any) -> str:
         try:
             ipaddress.ip_network(text, strict=False)
         except ValueError as err:
-            raise vol.Invalid(str(err)) from err
+            raise probatio.Invalid(str(err)) from err
     return text
 
 
-SCHEMA: Final = vol.Schema(
+SCHEMA: Final = probatio.Schema(
     {
         # An empty list is meaningful (auto-detection), so it is required
         # rather than defaulted: leaving it out is more likely a mistake.
-        vol.Required("adapters"): vol.All(ensure_list, [_selector]),
+        probatio.Required("adapters"): probatio.All(ensure_list, [_selector]),
     }
 )
 

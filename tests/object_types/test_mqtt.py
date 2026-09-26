@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import probatio as vol
+import probatio
 import pytest
 
 from custom_components.config_bridge.lib.diff import REDACTED
@@ -104,22 +104,22 @@ def test_numeric_password_is_a_string() -> None:
 
 
 def test_websocket_settings_need_websockets() -> None:
-    with pytest.raises(vol.Invalid, match="websockets"):
+    with pytest.raises(probatio.Invalid, match="websockets"):
         SCHEMA({"broker": "x", "ws_path": "/mqtt"})
     SCHEMA({"broker": "x", "transport": "websockets", "ws_path": "/mqtt"})
 
 
 def test_client_cert_needs_its_key() -> None:
-    with pytest.raises(vol.Invalid):
+    with pytest.raises(probatio.Invalid):
         SCHEMA({"broker": "x", "client_cert": "PEM"})
 
 
 def test_birth_message_needs_a_payload() -> None:
-    with pytest.raises(vol.Invalid):
+    with pytest.raises(probatio.Invalid):
         SCHEMA({"broker": "x", "birth_message": {"topic": "t"}})
     assert SCHEMA({"broker": "x", "birth_message": False})["birth_message"] is False
 
 
 def test_unknown_setting_is_a_typo() -> None:
-    with pytest.raises(vol.Invalid):
+    with pytest.raises(probatio.Invalid):
         SCHEMA({"broker": "x", "brokr": "y"})

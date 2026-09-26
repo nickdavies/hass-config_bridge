@@ -13,7 +13,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-import probatio as vol
+import probatio
 
 from ..const import CONF_REPORT_ONLY
 from .object_type import ObjectType
@@ -27,7 +27,7 @@ def with_report_only(schema: Validator) -> Validator:
     and set aside here, the object type's own schema never sees it, and the
     result always carries it.
     """
-    boolean = vol.Boolean()
+    boolean = probatio.Boolean()
 
     def validate(value: Any) -> Any:
         if not isinstance(value, Mapping):
@@ -36,8 +36,8 @@ def with_report_only(schema: Validator) -> Validator:
         settings = dict(value)
         try:
             report_only = boolean(settings.pop(CONF_REPORT_ONLY, False))
-        except vol.Invalid as err:
-            raise vol.Invalid(err.msg, path=[CONF_REPORT_ONLY]) from err
+        except probatio.Invalid as err:
+            raise probatio.Invalid(err.msg, path=[CONF_REPORT_ONLY]) from err
         return {**schema(settings), CONF_REPORT_ONLY: report_only}
 
     return validate
@@ -45,14 +45,14 @@ def with_report_only(schema: Validator) -> Validator:
 
 def bridge_schema(object_types: Mapping[str, ObjectType]) -> Validator:
     """The whole block: any of the object types, each under its name."""
-    return vol.All(
+    return probatio.All(
         # A bare `config_bridge:` loads the integration with nothing to
         # manage, which is how the export action is reached before any YAML
         # is written.
         lambda value: {} if value is None else value,
-        vol.Schema(
+        probatio.Schema(
             {
-                vol.Optional(name): with_report_only(object_type.schema)
+                probatio.Optional(name): with_report_only(object_type.schema)
                 for name, object_type in object_types.items()
             }
         ),

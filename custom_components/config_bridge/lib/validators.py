@@ -13,7 +13,7 @@ import re
 from collections.abc import Callable, Mapping
 from typing import Any, Final
 
-import probatio as vol
+import probatio
 
 Validator = Callable[[Any], Any]
 
@@ -33,10 +33,10 @@ def string(value: Any) -> str:
     A YAML password of `12345` arrives as an int and should still work.
     """
     if isinstance(value, bool) or value is None:
-        raise vol.Invalid("expected a string")
+        raise probatio.Invalid("expected a string")
     if isinstance(value, (str, int, float)):
         return str(value)
-    raise vol.Invalid("expected a string")
+    raise probatio.Invalid("expected a string")
 
 
 def ensure_list(value: Any) -> list[Any]:
@@ -50,7 +50,7 @@ def slug(value: Any) -> str:
     """An id: `cv.slug`."""
     text = string(value)
     if not SLUG_RE.match(text):
-        raise vol.Invalid(
+        raise probatio.Invalid(
             f"{text!r} is not a valid id: use lowercase letters and digits "
             "joined by single underscores"
         )
@@ -61,7 +61,7 @@ def entity_id(value: Any) -> str:
     """`cv.entity_id`: lowercased, then checked."""
     text = string(value).lower()
     if not ENTITY_ID_RE.match(text):
-        raise vol.Invalid(f"{text!r} is not a valid entity id")
+        raise probatio.Invalid(f"{text!r} is not a valid entity id")
     return text
 
 
@@ -69,7 +69,7 @@ def icon(value: Any) -> str:
     """`cv.icon`."""
     text = string(value)
     if ":" not in text:
-        raise vol.Invalid('icons are written as "prefix:name", e.g. mdi:sofa')
+        raise probatio.Invalid('icons are written as "prefix:name", e.g. mdi:sofa')
     return text
 
 
@@ -81,10 +81,10 @@ def ip_network(value: Any) -> str:
     try:
         return str(ipaddress.ip_network(string(value)))
     except ValueError as err:
-        raise vol.Invalid(str(err)) from err
+        raise probatio.Invalid(str(err)) from err
 
 
-port: Final = vol.All(vol.Coerce(int), vol.Range(min=1, max=65535))
+port: Final = probatio.All(probatio.Coerce(int), probatio.Range(min=1, max=65535))
 """`cv.port`."""
 
 
@@ -98,24 +98,24 @@ def keyed_by_slug(item_schema: Validator) -> Validator:
         if value is None:
             return {}
         if not isinstance(value, Mapping):
-            raise vol.Invalid("expected a mapping of id to settings")
+            raise probatio.Invalid("expected a mapping of id to settings")
         validated: dict[str, Any] = {}
         for key, item in value.items():
             try:
                 item_id = slug(key)
-            except vol.Invalid as err:
-                raise vol.Invalid(err.msg, path=[key]) from err
+            except probatio.Invalid as err:
+                raise probatio.Invalid(err.msg, path=[key]) from err
             try:
                 validated[item_id] = item_schema(item)
-            except vol.MultipleInvalid as err:
-                raise vol.MultipleInvalid(
+            except probatio.MultipleInvalid as err:
+                raise probatio.MultipleInvalid(
                     [
-                        vol.Invalid(error.msg, path=[key, *error.path])
+                        probatio.Invalid(error.msg, path=[key, *error.path])
                         for error in err.errors
                     ]
                 ) from err
-            except vol.Invalid as err:
-                raise vol.Invalid(err.msg, path=[key, *err.path]) from err
+            except probatio.Invalid as err:
+                raise probatio.Invalid(err.msg, path=[key, *err.path]) from err
         return validated
 
     return validate

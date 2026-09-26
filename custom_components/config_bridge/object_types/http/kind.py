@@ -18,7 +18,7 @@ from __future__ import annotations
 from types import ModuleType
 from typing import Any, Final, cast
 
-import probatio as vol
+import probatio
 from homeassistant.core import HomeAssistant
 
 from ...lib.diff import diff_fields
@@ -78,7 +78,7 @@ class HttpKind(Kind):
             # Home Assistant's own schema, so its defaults fill in anything
             # the YAML leaves out: an omitted setting means HA's default.
             desired = dict(http_config.HTTP_STORAGE_SCHEMA(self.settings))
-        except vol.Invalid as err:
+        except probatio.Invalid as err:
             raise KindError(f"Home Assistant rejects this HTTP config: {err}") from err
 
         store = await http_config.async_get_and_load_store(self.hass)

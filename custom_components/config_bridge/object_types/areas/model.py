@@ -12,23 +12,23 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any, Final
 
-import probatio as vol
+import probatio
 
 from ...lib.collection import Mode
 from ...lib.validators import entity_id, ensure_list, icon, keyed_by_slug, slug, string
 
 # --- the YAML ----------------------------------------------------------------
 
-ITEM_SCHEMA: Final = vol.Schema(
+ITEM_SCHEMA: Final = probatio.Schema(
     {
-        vol.Required("name"): string,
-        vol.Optional("icon"): icon,
-        vol.Optional("floor_id"): slug,
-        vol.Optional("aliases"): vol.All(ensure_list, [string]),
-        vol.Optional("labels"): vol.All(ensure_list, [slug]),
-        vol.Optional("picture"): string,
-        vol.Optional("temperature_entity_id"): entity_id,
-        vol.Optional("humidity_entity_id"): entity_id,
+        probatio.Required("name"): string,
+        probatio.Optional("icon"): icon,
+        probatio.Optional("floor_id"): slug,
+        probatio.Optional("aliases"): probatio.All(ensure_list, [string]),
+        probatio.Optional("labels"): probatio.All(ensure_list, [slug]),
+        probatio.Optional("picture"): string,
+        probatio.Optional("temperature_entity_id"): entity_id,
+        probatio.Optional("humidity_entity_id"): entity_id,
     }
 )
 
@@ -36,21 +36,21 @@ ITEM_SCHEMA: Final = vol.Schema(
 def _names_unique(conf: dict[str, Any]) -> dict[str, Any]:
     if duplicates := duplicate_names(conf["items"]):
         pairs = "; ".join(f"{first} and {second}" for first, second in duplicates)
-        raise vol.Invalid(
+        raise probatio.Invalid(
             f"areas with the same name (ignoring case and spaces): {pairs}",
             path=["items"],
         )
     return conf
 
 
-SCHEMA: Final = vol.All(
-    vol.Schema(
+SCHEMA: Final = probatio.All(
+    probatio.Schema(
         {
             # No default: whether areas the YAML doesn't list get deleted is
             # the one decision here that can't be undone, so it is written
             # down rather than assumed.
-            vol.Required("mode"): vol.In([mode.value for mode in Mode]),
-            vol.Optional("items", default=dict): keyed_by_slug(ITEM_SCHEMA),
+            probatio.Required("mode"): probatio.In([mode.value for mode in Mode]),
+            probatio.Optional("items", default=dict): keyed_by_slug(ITEM_SCHEMA),
         }
     ),
     _names_unique,

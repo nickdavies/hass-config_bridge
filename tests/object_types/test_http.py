@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from typing import Any
 
-import probatio as vol
+import probatio
 import pytest
 
 from custom_components.config_bridge.object_types.http.model import (
@@ -146,18 +146,18 @@ def test_export_leaves_out_defaults() -> None:
 
 def test_trusted_proxies_must_be_networks_with_no_host_bits() -> None:
     # Strict like Home Assistant's own schema, so CI refuses what HA would.
-    with pytest.raises(vol.Invalid):
+    with pytest.raises(probatio.Invalid):
         SCHEMA({"trusted_proxies": ["10.244.0.1/16"]})
-    with pytest.raises(vol.Invalid):
+    with pytest.raises(probatio.Invalid):
         SCHEMA({"trusted_proxies": ["not-a-network"]})
 
 
 def test_forwarded_for_needs_a_trusted_proxy() -> None:
-    with pytest.raises(vol.Invalid, match="trusted proxy"):
+    with pytest.raises(probatio.Invalid, match="trusted proxy"):
         SCHEMA({"use_x_forwarded_for": True})
 
 
 def test_login_threshold_accepts_the_disabled_sentinel() -> None:
     assert SCHEMA({"login_attempts_threshold": -1})["login_attempts_threshold"] == -1
-    with pytest.raises(vol.Invalid):
+    with pytest.raises(probatio.Invalid):
         SCHEMA({"login_attempts_threshold": -2})

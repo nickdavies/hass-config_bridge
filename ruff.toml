@@ -2,4 +2,9 @@
 # defaults expand between ruff releases, so inheriting them lets a new release
 # turn CI red on an unchanged tree.
 [lint]
-select = ["E4", "E7", "E9", "F"]
+select = ["E4", "E7", "E9", "F", "ICN001"]
+
+# probatio is used by its own name, as in Home Assistant's code: never aliased
+# to `vol` or anything else.
+[lint.flake8-import-conventions]
+aliases = { probatio = "probatio" }

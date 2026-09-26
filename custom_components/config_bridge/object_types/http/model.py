@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any, Final
 
-import probatio as vol
+import probatio
 
 from ...lib.validators import ensure_list, ip_network, port, string
 
@@ -33,32 +33,36 @@ from ...lib.validators import ensure_list, ip_network, port, string
 def _forwarded_for_needs_proxies(conf: dict[str, Any]) -> dict[str, Any]:
     """HA's settings page refuses this pair, and so would the store."""
     if conf.get("use_x_forwarded_for") and not conf.get("trusted_proxies"):
-        raise vol.Invalid(
+        raise probatio.Invalid(
             "use_x_forwarded_for needs at least one trusted proxy",
             path=["trusted_proxies"],
         )
     return conf
 
 
-SCHEMA: Final = vol.All(
-    vol.Schema(
+SCHEMA: Final = probatio.All(
+    probatio.Schema(
         {
-            vol.Optional("server_host"): vol.All(
-                ensure_list, vol.Length(min=1), [string]
+            probatio.Optional("server_host"): probatio.All(
+                ensure_list, probatio.Length(min=1), [string]
             ),
-            vol.Optional("server_port"): port,
-            vol.Optional("ssl_certificate"): string,
-            vol.Optional("ssl_peer_certificate"): string,
-            vol.Optional("ssl_key"): string,
-            vol.Optional("cors_allowed_origins"): vol.All(ensure_list, [string]),
-            vol.Optional("use_x_forwarded_for"): vol.Boolean(),
-            vol.Optional("trusted_proxies"): vol.All(ensure_list, [ip_network]),
-            vol.Optional("login_attempts_threshold"): vol.Any(
-                vol.All(vol.Coerce(int), vol.Range(min=0)), -1
+            probatio.Optional("server_port"): port,
+            probatio.Optional("ssl_certificate"): string,
+            probatio.Optional("ssl_peer_certificate"): string,
+            probatio.Optional("ssl_key"): string,
+            probatio.Optional("cors_allowed_origins"): probatio.All(
+                ensure_list, [string]
             ),
-            vol.Optional("ip_ban_enabled"): vol.Boolean(),
-            vol.Optional("ssl_profile"): vol.In(["intermediate", "modern"]),
-            vol.Optional("use_x_frame_options"): vol.Boolean(),
+            probatio.Optional("use_x_forwarded_for"): probatio.Boolean(),
+            probatio.Optional("trusted_proxies"): probatio.All(
+                ensure_list, [ip_network]
+            ),
+            probatio.Optional("login_attempts_threshold"): probatio.Any(
+                probatio.All(probatio.Coerce(int), probatio.Range(min=0)), -1
+            ),
+            probatio.Optional("ip_ban_enabled"): probatio.Boolean(),
+            probatio.Optional("ssl_profile"): probatio.In(["intermediate", "modern"]),
+            probatio.Optional("use_x_frame_options"): probatio.Boolean(),
         }
     ),
     _forwarded_for_needs_proxies,

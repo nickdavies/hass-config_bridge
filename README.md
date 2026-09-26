@@ -271,8 +271,10 @@ release homelab deploys, pinned in `.github/workflows/ci.yml`.
 ## Development
 
 Schemas are written with probatio, the validation library Home Assistant
-uses (it answers to `import voluptuous` inside Home Assistant as well). The
-unit tests need only pytest and probatio. The integration tests need Python
+uses (it answers to `import voluptuous` inside Home Assistant as well), by its
+own name: `import probatio`, never an alias such as `vol`, as in Home
+Assistant's code. ruff enforces that (ICN001). The unit tests need only
+pytest and probatio. The integration tests need Python
 3.14.2 or later, because they run against the Home Assistant release homelab
 deploys.
 

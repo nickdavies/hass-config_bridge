@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import probatio as vol
+import probatio
 import pytest
 
 from custom_components.config_bridge import CONFIG_SCHEMA, OBJECT_TYPES
@@ -47,12 +47,12 @@ def test_empty_block_is_allowed() -> None:
 
 
 def test_unknown_object_type_is_a_typo() -> None:
-    with pytest.raises(vol.Invalid):
+    with pytest.raises(probatio.Invalid):
         validate({"htpp": {}})
 
 
 def test_unknown_setting_is_a_typo() -> None:
-    with pytest.raises(vol.Invalid):
+    with pytest.raises(probatio.Invalid):
         validate({"mqtt": {"broker": "x", "brokr": "y"}})
 
 

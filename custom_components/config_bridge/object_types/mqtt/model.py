@@ -17,23 +17,23 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Final
 
-import probatio as vol
+import probatio
 
 from ...lib.diff import REDACTED
 from ...lib.validators import port, string
 
 # --- the YAML ----------------------------------------------------------------
 
-_qos = vol.All(vol.Coerce(int), vol.In([0, 1, 2]))
+_qos = probatio.All(probatio.Coerce(int), probatio.In([0, 1, 2]))
 
-_BIRTH_WILL = vol.Any(
+_BIRTH_WILL = probatio.Any(
     False,
-    vol.Schema(
+    probatio.Schema(
         {
-            vol.Required("topic"): string,
-            vol.Required("payload"): string,
-            vol.Optional("qos", default=0): _qos,
-            vol.Optional("retain", default=False): vol.Boolean(),
+            probatio.Required("topic"): string,
+            probatio.Required("payload"): string,
+            probatio.Optional("qos", default=0): _qos,
+            probatio.Optional("retain", default=False): probatio.Boolean(),
         }
     ),
 )
@@ -44,7 +44,7 @@ def _websocket_settings_need_websockets(conf: dict[str, Any]) -> dict[str, Any]:
     if conf.get("transport", "tcp") != "websockets":
         for key in ("ws_path", "ws_headers"):
             if key in conf:
-                raise vol.Invalid(
+                raise probatio.Invalid(
                     f"{key} only applies to transport: websockets", path=[key]
                 )
     return conf
@@ -52,32 +52,36 @@ def _websocket_settings_need_websockets(conf: dict[str, Any]) -> dict[str, Any]:
 
 def _client_cert_and_key_together(conf: dict[str, Any]) -> dict[str, Any]:
     if ("client_cert" in conf) != ("client_key" in conf):
-        raise vol.Invalid("client_cert and client_key go together")
+        raise probatio.Invalid("client_cert and client_key go together")
     return conf
 
 
-SCHEMA: Final = vol.All(
-    vol.Schema(
+SCHEMA: Final = probatio.All(
+    probatio.Schema(
         {
-            vol.Required("broker"): string,
-            vol.Optional("port"): port,
-            vol.Optional("protocol"): vol.All(string, vol.In(["5", "3.1.1", "3.1"])),
-            vol.Optional("username"): string,
-            vol.Optional("password"): string,
-            vol.Optional("client_id"): string,
-            vol.Optional("keepalive"): vol.All(vol.Coerce(int), vol.Range(min=15)),
-            vol.Optional("transport"): vol.In(["tcp", "websockets"]),
-            vol.Optional("ws_path"): string,
-            vol.Optional("ws_headers"): {str: str},
-            vol.Optional("certificate"): string,
-            vol.Optional("client_cert"): string,
-            vol.Optional("client_key"): string,
-            vol.Optional("tls_insecure"): vol.Boolean(),
-            vol.Optional("discovery"): vol.Boolean(),
-            vol.Optional("discovery_prefix"): string,
-            vol.Optional("discovery_qos"): _qos,
-            vol.Optional("birth_message"): _BIRTH_WILL,
-            vol.Optional("will_message"): _BIRTH_WILL,
+            probatio.Required("broker"): string,
+            probatio.Optional("port"): port,
+            probatio.Optional("protocol"): probatio.All(
+                string, probatio.In(["5", "3.1.1", "3.1"])
+            ),
+            probatio.Optional("username"): string,
+            probatio.Optional("password"): string,
+            probatio.Optional("client_id"): string,
+            probatio.Optional("keepalive"): probatio.All(
+                probatio.Coerce(int), probatio.Range(min=15)
+            ),
+            probatio.Optional("transport"): probatio.In(["tcp", "websockets"]),
+            probatio.Optional("ws_path"): string,
+            probatio.Optional("ws_headers"): {str: str},
+            probatio.Optional("certificate"): string,
+            probatio.Optional("client_cert"): string,
+            probatio.Optional("client_key"): string,
+            probatio.Optional("tls_insecure"): probatio.Boolean(),
+            probatio.Optional("discovery"): probatio.Boolean(),
+            probatio.Optional("discovery_prefix"): string,
+            probatio.Optional("discovery_qos"): _qos,
+            probatio.Optional("birth_message"): _BIRTH_WILL,
+            probatio.Optional("will_message"): _BIRTH_WILL,
         }
     ),
     _websocket_settings_need_websockets,
