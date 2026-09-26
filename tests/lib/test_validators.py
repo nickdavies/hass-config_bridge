@@ -10,6 +10,7 @@ from custom_components.config_bridge.lib.validators import (
     entity_id,
     icon,
     ip_network,
+    keyed_by_entity_id,
     keyed_by_slug,
     port,
     slug,
@@ -89,3 +90,21 @@ def test_keyed_by_slug_points_inside_an_item() -> None:
     with pytest.raises(probatio.Invalid) as err:
         ITEMS({"kitchen": {}})
     assert err.value.path == ["kitchen", "name"]
+
+
+ENTITIES = keyed_by_entity_id(slug)
+
+
+def test_keyed_by_entity_id_lowercases_keys() -> None:
+    assert ENTITIES({"Light.A": "kitchen"}) == {"light.a": "kitchen"}
+
+
+def test_keyed_by_entity_id_points_at_a_bad_key() -> None:
+    with pytest.raises(probatio.Invalid) as err:
+        ENTITIES({"kitchen": "kitchen"})
+    assert err.value.path == ["kitchen"]
+
+
+def test_keyed_by_entity_id_refuses_a_key_twice() -> None:
+    with pytest.raises(probatio.Invalid, match="listed twice"):
+        ENTITIES({"light.a": "kitchen", "LIGHT.A": "kitchen"})
