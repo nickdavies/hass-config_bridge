@@ -6,7 +6,8 @@ somewhere else.
 Home Assistant keeps some settings only in config entries, private
 `.storage` files and registries, where they are set from the UI and are not
 reviewable, reproducible or in git: MQTT's broker connection, the HTTP
-server's settings, the network adapters discovery listens on, and areas.
+server's settings, the network adapters discovery listens on, areas, and
+which area each entity is in.
 This component reads a `config_bridge:` block and makes Home Assistant match
 it on every boot. Anything changed in the UI is put back at the next
 restart.
@@ -37,6 +38,9 @@ config_bridge:
         name: Living Room
         aliases:
           - family room
+  entity_areas:
+    items:
+      light.kitchen_lights_all: kitchen
 ```
 
 It is ordinary YAML, so `!secret`, `!include` and packages all work. The
@@ -53,6 +57,10 @@ at boot, inside its own error boundary, and ends up in one of three states:
   them. They're logged at info level.
 - **Reported:** nothing was written. A repair issue (Settings → Repairs) gives
   the reason and the exact changes it would have made, with secrets redacted.
+
+Object types run in a fixed order, whatever order the YAML lists them in.
+Those that wait for Home Assistant to start run one after another, so one can
+rely on what an earlier one wrote: `entity_areas` on the areas `areas` made.
 
 An object type reports instead of applying in three cases:
 
@@ -193,6 +201,36 @@ is written:
 
 `mode: exclusive` with no items is refused.
 
+### `entity_areas`
+
+Which area each listed entity is in: the entity's own area, which takes
+precedence over its device's. Each key under `items` is an entity id and each
+value an area id.
+
+```yaml
+entity_areas:
+  items:
+    light.kitchen_lights_all: kitchen
+    light.lounge_lights_all: lounge
+```
+
+The bridge manages only the entities it lists. An entity it assigned is taken
+out of its area once it leaves the YAML. Entities it never listed are left
+alone, whether their area was set in the UI or comes from their device. The
+listed set is kept in `.storage/config_bridge`. If that file is lost, entities
+the bridge assigned before stay where they are rather than being cleared.
+
+Entity areas are reconciled once Home Assistant has started, after `areas`,
+so an area created on the same boot is there first. Anything that would make
+a write fail is checked before anything is written:
+
+- an entity that isn't in the entity registry
+- an area that doesn't exist
+
+An entity is in the registry from the first boot its integration sees it. An
+entity discovered for the first time on this boot, over MQTT say, is reported
+once and applied at the next boot.
+
 ## Getting started
 
 1. Add an empty `config_bridge:` block and restart. That loads the component
@@ -263,6 +301,7 @@ Kind whose Home Assistant imports fail stops only its own object type.
 | `mqtt` | `hass.config_entries`; MQTT entry version 2.1 |
 | `network` | `components.network.network.async_get_network`; storage version 1 |
 | `areas` | the area, floor and label registries (public helpers) |
+| `entity_areas` | the entity and area registries (public helpers) |
 
 When an object type reports because one of these differs, its repair issue
 names what differs. The integration tests run against the Home Assistant

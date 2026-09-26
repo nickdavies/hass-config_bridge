@@ -18,7 +18,7 @@ from collections.abc import Mapping
 from typing import Final
 
 from ..lib.object_type import ObjectType
-from . import areas, http, mqtt, network
+from . import areas, entity_areas, http, mqtt, network
 
 OBJECT_TYPES: Final[Mapping[str, ObjectType]] = {
     object_type.name: object_type
@@ -26,6 +26,9 @@ OBJECT_TYPES: Final[Mapping[str, ObjectType]] = {
         http.OBJECT_TYPE,
         mqtt.OBJECT_TYPE,
         network.OBJECT_TYPE,
+        # After areas: object types that run once Home Assistant has started
+        # run in this order, and an entity can only go in an area that exists.
         areas.OBJECT_TYPE,
+        entity_areas.OBJECT_TYPE,
     )
 }

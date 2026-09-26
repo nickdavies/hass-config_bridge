@@ -59,7 +59,12 @@ async def async_setup_bridge(
     ledger = Ledger(hass)
     await ledger.async_load()
 
-    for name, type_conf in conf.items():
+    # Registry order, not the YAML's: packages can merge the block in any
+    # order, and object types that run once Home Assistant has started may
+    # depend on the ones before them (entity_areas on areas).
+    started: list[tuple[str, Kind, bool]] = []
+    for name in [name for name in object_types if name in conf]:
+        type_conf = conf[name]
         report_only = bool(type_conf[CONF_REPORT_ONLY])
         settings = {
             key: value for key, value in type_conf.items() if key != CONF_REPORT_ONLY
@@ -73,7 +78,9 @@ async def async_setup_bridge(
         if kind.run_at is RunAt.SETUP:
             await async_run_kind(hass, name, kind, report_only=report_only)
         else:
-            async_at_started(hass, _runner_for(name, kind, report_only))
+            started.append((name, kind, report_only))
+    if started:
+        async_at_started(hass, _runner_for(started))
 
     # Object types that aren't configured are cleared too, so taking one out
     # of the YAML doesn't leave its last report behind.
@@ -93,10 +100,16 @@ async def async_setup_bridge(
 
 
 def _runner_for(
-    name: str, kind: Kind, report_only: bool
+    kinds: list[tuple[str, Kind, bool]],
 ) -> Callable[[HomeAssistant], Awaitable[None]]:
+    """One callback that runs them in turn, each finished before the next plans.
+
+    Separate callbacks would each be their own task, free to interleave.
+    """
+
     async def run(hass: HomeAssistant) -> None:
-        await async_run_kind(hass, name, kind, report_only=report_only)
+        for name, kind, report_only in kinds:
+            await async_run_kind(hass, name, kind, report_only=report_only)
 
     return run
 
