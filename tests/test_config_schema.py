@@ -23,6 +23,7 @@ HOMELAB = {
         "mode": "exclusive",
         "items": {"kitchen": {"name": "Kitchen", "icon": "mdi:stove"}},
     },
+    "entities": {"items": {"light.kitchen_lights_all": {"area_id": "kitchen"}}},
 }
 
 
@@ -31,7 +32,13 @@ def validate(block: object) -> dict:
 
 
 def test_every_object_type_is_registered() -> None:
-    assert list(OBJECT_TYPES) == ["http", "mqtt", "network", "areas"]
+    assert list(OBJECT_TYPES) == [
+        "http",
+        "mqtt",
+        "network",
+        "areas",
+        "entities",
+    ]
 
 
 def test_homelab_config_validates() -> None:

@@ -7,13 +7,15 @@ and registries, where they are set from the UI. This integration reads a
 It has two halves:
 
 - `object_types/`: one package per thing the bridge manages (`http`, `mqtt`,
-  `network`, `areas`), each with its schema and decisions in `model.py` and
-  the code that reads and writes Home Assistant in `kind.py`.
+  `network`, `areas`, `entities`), each with its schema and decisions in
+  `model.py` and the code that reads and writes Home Assistant in `kind.py`.
 - `lib/`: what they share: the runner and its error boundaries, plans,
   diffs, collection planning, shared validators and the ledger.
 
 This module wires the two together: `CONFIG_SCHEMA` from the object types'
 schemas, and a setup that hands the configured object types to the runner.
+It also exports `claim_entities`, for other integrations to pin their own
+entities (`claims.py`).
 
 **This module imports no Home Assistant at runtime.** Importing any module
 of the integration runs this file first, so the framework imports are
@@ -27,6 +29,7 @@ from typing import TYPE_CHECKING
 
 import probatio
 
+from .claims import claim_entities
 from .const import DOMAIN
 from .lib.schema import bridge_schema
 from .object_types import OBJECT_TYPES
@@ -34,6 +37,8 @@ from .object_types import OBJECT_TYPES
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.typing import ConfigType
+
+__all__ = ["CONFIG_SCHEMA", "async_setup", "claim_entities"]
 
 # Strict: an unknown object type or setting is an error, so `check_config`
 # catches a typo before it ships. `lib/schema.py` says what is checked here
