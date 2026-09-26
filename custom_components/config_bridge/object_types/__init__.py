@@ -18,7 +18,7 @@ from collections.abc import Mapping
 from typing import Final
 
 from ..lib.object_type import ObjectType
-from . import areas, entities, http, mqtt, network
+from . import areas, devices, entities, http, mqtt, network
 
 OBJECT_TYPES: Final[Mapping[str, ObjectType]] = {
     object_type.name: object_type
@@ -27,6 +27,7 @@ OBJECT_TYPES: Final[Mapping[str, ObjectType]] = {
         mqtt.OBJECT_TYPE,
         network.OBJECT_TYPE,
         areas.OBJECT_TYPE,
+        devices.OBJECT_TYPE,
         entities.OBJECT_TYPE,
     )
 }

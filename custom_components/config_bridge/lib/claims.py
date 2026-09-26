@@ -53,20 +53,24 @@ def claims_for(data: Mapping[str, Any], object_type: str) -> dict[str, Any]:
     return dict(data.get(CLAIMS, {}).get(object_type, {}))
 
 
-def merge_claims[T](
-    yaml_items: Mapping[str, Any],
-    claims: Mapping[str, Mapping[str, Any]],
+def merge_claims[K, T](
+    yaml_items: Mapping[K, Any],
+    claims: Mapping[str, Mapping[K, Any]],
     render: Callable[[Any], T],
-) -> tuple[dict[str, tuple[str, T]], list[str]]:
-    """Every listed key with its owner and rendered item, and any conflicts."""
-    owners: dict[str, list[str]] = {}
-    items: dict[str, Any] = {}
+    describe: Callable[[K], str] = str,
+) -> tuple[dict[K, tuple[str, T]], list[str]]:
+    """Every listed key with its owner and rendered item, and any conflicts.
+
+    `describe` is how a conflict names a key.
+    """
+    owners: dict[K, list[str]] = {}
+    items: dict[K, Any] = {}
     for owner, owned_items in [(YAML_OWNER, yaml_items), *sorted(claims.items())]:
         for key, item in owned_items.items():
             owners.setdefault(key, []).append(owner)
             items[key] = item
     conflicts = [
-        f"{key} is listed by {' and '.join(names)}"
+        f"{describe(key)} is listed by {' and '.join(names)}"
         for key, names in sorted(owners.items())
         if len(names) > 1
     ]

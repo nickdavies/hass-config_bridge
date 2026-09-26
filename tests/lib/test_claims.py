@@ -70,3 +70,10 @@ def test_a_key_listed_twice_is_a_conflict_not_a_merge() -> None:
 def test_claimed_by() -> None:
     assert claimed_by(YAML_OWNER) == ""
     assert claimed_by("plants") == " (claimed by plants)"
+
+
+def test_a_conflict_names_the_key_as_described() -> None:
+    _, conflicts = merge_claims(
+        {("mqtt", "x"): 1}, {"z": {("mqtt", "x"): 1}}, lambda n: n, " ".join
+    )
+    assert conflicts == ["mqtt x is listed by the YAML and z"]

@@ -7,8 +7,9 @@ Home Assistant keeps some settings only in config entries, private
 `.storage` files and registries, where they are set from the UI and are not
 reviewable, reproducible or in git: MQTT's broker connection, the HTTP
 server's settings, the network adapters discovery listens on, areas, and
-what a person can change about an entity (its id, name, icon, area, aliases,
-labels, and whether it is hidden or disabled).
+what a person can change about a device or an entity (its name, area, labels,
+whether it is disabled, and for an entity its id, icon, aliases and whether
+it is hidden).
 This component reads a `config_bridge:` block and makes Home Assistant match
 it on every boot. Anything changed in the UI is put back at the next
 restart. Other integrations can pin their own entities the same way, from
@@ -40,6 +41,11 @@ config_bridge:
         name: Living Room
         aliases:
           - family room
+  devices:
+    items:
+      mqtt:
+        zigbee2mqtt_0x001788010c6f92e4:
+          area_id: dining
   entities:
     items:
       light.kitchen_lights_all:
@@ -63,7 +69,8 @@ at boot, inside its own error boundary, and ends up in one of three states:
 
 Object types run in a fixed order, whatever order the YAML lists them in.
 Those that wait for Home Assistant to start run one after another, so one can
-rely on what an earlier one wrote: `entities` on the areas `areas` made.
+rely on what an earlier one wrote: `devices` and `entities` on the areas
+`areas` made.
 
 An object type reports instead of applying in three cases:
 
@@ -204,6 +211,53 @@ is written:
 
 `mode: exclusive` with no items is refused.
 
+### `devices`
+
+Device registry entries, pinned. Devices are keyed by an identifier their
+integration gives them, under that integration's domain: what stays the same
+across rebuilds. For zigbee2mqtt devices that is `zigbee2mqtt_<ieee address>`
+under `mqtt`.
+
+```yaml
+devices:
+  items:
+    mqtt:
+      zigbee2mqtt_0x001788010c6f92e4:
+        area_id: dining             # must exist
+        name: Dining centre 1       # the name it is shown by
+        labels:                     # label ids; must exist
+          - lights
+        disabled: false
+      zigbee2mqtt_0x282c02bfffe7b967:   # nothing listed: every field its default
+```
+
+Every field above is pinned, listed or not. A field left out goes back to its
+default: no area, the integration's own name, no labels, not disabled. A
+device's entities with no area of their own are in its area, so this is
+where a zigbee device's room goes.
+
+- **`disabled`** means disabled by a user. A device its integration or
+  config entry disabled is left that way unless the item says otherwise.
+- **Not managed:** everything the integration sets (its own name,
+  manufacturer, model, firmware, connections).
+
+The bridge manages only the devices that are listed, by the YAML or by a
+claim, and releases one that stops being listed, as `entities` does. The
+listed identifiers are kept in `.storage/config_bridge`. If that file is
+lost, a device no longer listed keeps its pinned values rather than being
+released.
+
+Devices are reconciled once Home Assistant has started, after `areas`.
+Anything that would make a write fail is checked before anything is written:
+
+- a device that isn't in the device registry
+- an identifier more than one device has (identifiers are only unique
+  within a config entry)
+- an area or label that doesn't exist
+- a device listed twice, by the YAML and a claim or by two claims
+
+`devices` runs even when the YAML doesn't list it, for the claims.
+
 ### `entities`
 
 Entity registry entries, pinned. Each key under `items` is an entity id.
@@ -266,15 +320,18 @@ and applied at the next boot.
 
 ## Claims from other integrations
 
-An integration whose entities have unique ids has registry entries a person
-can edit in the UI. To keep those in git too, it claims them at setup, in the
-shape of `entities`' items:
+An integration whose entities have unique ids, or that has devices, has
+registry entries a person can edit in the UI. To keep those in git too, it
+claims them at setup, in the shape of `entities`' and `devices`' items:
 
 ```python
-from custom_components.config_bridge import claim_entities
+from custom_components.config_bridge import claim_devices, claim_entities
 
 claim_entities(hass, DOMAIN, {
     "switch.kitchen_killswitch": {"area_id": "kitchen"},
+})
+claim_devices(hass, DOMAIN, {
+    DOMAIN: {"fixture_kitchen": {"area_id": "kitchen"}},
 })
 ```
 
@@ -282,14 +339,17 @@ The bridge then pins them exactly as if the YAML listed them, and its reports
 name the integration that claimed each one. The data stays in that
 integration's own config; the bridge only enforces it.
 
-- **Claiming again** replaces the integration's previous claim. An entity it
-  no longer claims is released at the next boot.
+- **Claiming again** replaces the integration's previous claim of that kind.
+  One it no longer claims is released at the next boot.
 - **Timing:** claims are read once Home Assistant has started, so claim during
   setup. A claim made later applies at the next boot.
-- **A bad item** raises `ValueError` from `claim_entities` straight away,
-  since it's a bug in the claiming integration.
-- **Without the bridge:** `claim_entities` imports no Home Assistant and needs
-  nothing set up, so it can be called either way. It only records the claim.
+- **Devices** exist only for an integration set up from a config entry.
+  Home Assistant ignores `device_info` on entities of an integration set up
+  from YAML, so such an integration has only entities to claim.
+- **A bad item** raises `ValueError` straight away, since it's a bug in the
+  claiming integration.
+- **Without the bridge:** the claim functions import no Home Assistant and
+  need nothing set up, so it can be called either way. It only records the claim.
   To know whether it will be applied, list `config_bridge` in the manifest's
   `after_dependencies` and check `"config_bridge" in hass.config.components`.
 
@@ -312,7 +372,7 @@ integration's own config; the bridge only enforces it.
 ```
 custom_components/config_bridge/
 ├── __init__.py          CONFIG_SCHEMA and setup: wires the two halves together
-├── claims.py            claim_entities, for other integrations
+├── claims.py            claim_devices and claim_entities, for other integrations
 ├── lib/                 the engine every object type shares
 │   ├── object_type.py   ObjectType: how an object type is registered
 │   ├── kind.py          Kind: the interface an object type's HA side implements
@@ -368,6 +428,7 @@ Kind whose Home Assistant imports fail stops only its own object type.
 | `mqtt` | `hass.config_entries`; MQTT entry version 2.1 |
 | `network` | `components.network.network.async_get_network`; storage version 1 |
 | `areas` | the area, floor and label registries (public helpers) |
+| `devices` | the device, area and label registries (public helpers); `async_get_devices`, since identifiers are unique only per config entry |
 | `entities` | the entity, area and label registries (public helpers); entity aliases as a list holding `COMPUTED_NAME` |
 
 When an object type reports because one of these differs, its repair issue
