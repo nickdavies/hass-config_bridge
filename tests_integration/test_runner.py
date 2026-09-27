@@ -112,7 +112,14 @@ async def test_export_returns_every_object_type_in_yaml_shape(
         DOMAIN, "export", {}, blocking=True, return_response=True
     )
 
-    assert set(exported) == {"http", "mqtt", "network", "areas", "entities"}
+    assert set(exported) == {
+        "http",
+        "mqtt",
+        "network",
+        "areas",
+        "devices",
+        "entities",
+    }
     assert exported["areas"] == {
         "mode": "exclusive",
         "items": {"kitchen": {"name": "Kitchen", "icon": "mdi:stove"}},
