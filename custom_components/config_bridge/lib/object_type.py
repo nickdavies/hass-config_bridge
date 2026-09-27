@@ -24,3 +24,9 @@ class ObjectType:
     load_kind: Callable[[], type[Kind]]
     """Imports its `Kind`. The runner calls it inside the object type's error
     boundary, so a Kind that fails to import stops that object type only."""
+
+    runs_unlisted: bool = False
+    """Run even when the YAML doesn't list it, as if listed with no settings.
+
+    For object types other integrations add to as well as the YAML
+    (`entities`, through claims), which have work to do without YAML."""

@@ -40,6 +40,7 @@ from .kind import Kind, KindError, RunAt
 from .ledger import Ledger
 from .object_type import ObjectType
 from .plan import Plan, render_plan
+from .schema import with_report_only
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -55,11 +56,27 @@ async def async_setup_bridge(
     conf: Mapping[str, Any],
     object_types: Mapping[str, ObjectType],
 ) -> None:
-    """Run each configured object type, now or once Home Assistant has started."""
+    """Run each configured object type, now or once Home Assistant has started.
+
+    An object type that runs unlisted (`ObjectType.runs_unlisted`) runs with
+    empty settings when the YAML leaves it out.
+    """
     ledger = Ledger(hass)
     await ledger.async_load()
 
-    for name, type_conf in conf.items():
+    # Registry order, not the YAML's: packages can merge the block in any
+    # order, and object types that run once Home Assistant has started may
+    # depend on the ones before them (entities on areas).
+    started: list[tuple[str, Kind, bool]] = []
+    running: set[str] = set()
+    for name, object_type in object_types.items():
+        if name in conf:
+            type_conf = conf[name]
+        elif object_type.runs_unlisted:
+            type_conf = with_report_only(object_type.schema)({})
+        else:
+            continue
+        running.add(name)
         report_only = bool(type_conf[CONF_REPORT_ONLY])
         settings = {
             key: value for key, value in type_conf.items() if key != CONF_REPORT_ONLY
@@ -73,11 +90,13 @@ async def async_setup_bridge(
         if kind.run_at is RunAt.SETUP:
             await async_run_kind(hass, name, kind, report_only=report_only)
         else:
-            async_at_started(hass, _runner_for(name, kind, report_only))
+            started.append((name, kind, report_only))
+    if started:
+        async_at_started(hass, _runner_for(started))
 
-    # Object types that aren't configured are cleared too, so taking one out
-    # of the YAML doesn't leave its last report behind.
-    for name in object_types.keys() - conf.keys():
+    # Object types that aren't run are cleared too, so taking one out of the
+    # YAML doesn't leave its last report behind.
+    for name in object_types.keys() - running:
         ir.async_delete_issue(hass, DOMAIN, _issue_id(name))
 
     async def export(call: ServiceCall) -> ServiceResponse:
@@ -93,10 +112,16 @@ async def async_setup_bridge(
 
 
 def _runner_for(
-    name: str, kind: Kind, report_only: bool
+    kinds: list[tuple[str, Kind, bool]],
 ) -> Callable[[HomeAssistant], Awaitable[None]]:
+    """One callback that runs them in turn, each finished before the next plans.
+
+    Separate callbacks would each be their own task, free to interleave.
+    """
+
     async def run(hass: HomeAssistant) -> None:
-        await async_run_kind(hass, name, kind, report_only=report_only)
+        for name, kind, report_only in kinds:
+            await async_run_kind(hass, name, kind, report_only=report_only)
 
     return run
 

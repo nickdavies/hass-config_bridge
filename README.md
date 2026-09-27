@@ -6,10 +6,13 @@ somewhere else.
 Home Assistant keeps some settings only in config entries, private
 `.storage` files and registries, where they are set from the UI and are not
 reviewable, reproducible or in git: MQTT's broker connection, the HTTP
-server's settings, the network adapters discovery listens on, and areas.
+server's settings, the network adapters discovery listens on, areas, and
+what a person can change about an entity (its id, name, icon, area, aliases,
+labels, and whether it is hidden or disabled).
 This component reads a `config_bridge:` block and makes Home Assistant match
 it on every boot. Anything changed in the UI is put back at the next
-restart.
+restart. Other integrations can pin their own entities the same way, from
+their own config (see [Claims](#claims-from-other-integrations)).
 
 ```yaml
 config_bridge:
@@ -37,6 +40,10 @@ config_bridge:
         name: Living Room
         aliases:
           - family room
+  entities:
+    items:
+      light.kitchen_lights_all:
+        area_id: kitchen
 ```
 
 It is ordinary YAML, so `!secret`, `!include` and packages all work. The
@@ -53,6 +60,10 @@ at boot, inside its own error boundary, and ends up in one of three states:
   them. They're logged at info level.
 - **Reported:** nothing was written. A repair issue (Settings → Repairs) gives
   the reason and the exact changes it would have made, with secrets redacted.
+
+Object types run in a fixed order, whatever order the YAML lists them in.
+Those that wait for Home Assistant to start run one after another, so one can
+rely on what an earlier one wrote: `entities` on the areas `areas` made.
 
 An object type reports instead of applying in three cases:
 
@@ -193,6 +204,95 @@ is written:
 
 `mode: exclusive` with no items is refused.
 
+### `entities`
+
+Entity registry entries, pinned. Each key under `items` is an entity id.
+
+```yaml
+entities:
+  items:
+    light.kitchen_lights_all:
+      area_id: kitchen              # must exist
+      name: Kitchen lights
+      icon: mdi:ceiling-light
+      aliases:
+        - kitchen
+      labels:                       # label ids; must exist
+        - downstairs
+      hidden: false
+      disabled: false
+    sensor.fridge_door_battery:     # nothing listed: every field its default
+```
+
+Every field above is pinned, listed or not. A field left out goes back to the
+integration's own value: no name or icon of its own, no area of its own (so
+its device's area applies), no aliases but the entity's name, no labels, not
+hidden or disabled. The entity id is pinned too, so an entity renamed in the
+UI is renamed back.
+
+- **`hidden` and `disabled`** mean hidden or disabled by a user. An entity
+  its integration hid or disabled is left that way unless the item says
+  otherwise. Enabling or disabling a YAML-configured entity takes effect at
+  the next restart.
+- **Not managed:** the entity's options (display precision, unit, voice
+  assistant exposure), its categories, and a device class override, which is
+  always cleared.
+
+The bridge manages only the entities that are listed, by the YAML or by a
+claim. One that stops being listed is released: its fields go back to the
+integration's own values once, and it is left alone from then on. Entities
+never listed are untouched.
+
+The listed entities and their registry ids are kept in
+`.storage/config_bridge`. The registry id is what finds an entity renamed in
+the UI. If the file is lost, an entity renamed since is reported missing
+rather than renamed back, and one no longer listed keeps its pinned values
+rather than being released.
+
+Entities are reconciled once Home Assistant has started, after `areas`, so
+every integration's entities are registered and an area created on the same
+boot already exists. Anything that would make a write fail is checked before
+anything is written:
+
+- an entity that isn't in the entity registry
+- an area or label that doesn't exist
+- an entity listed twice, by the YAML and a claim or by two claims
+
+An entity is in the registry from the first boot its integration sees it. One
+discovered for the first time on this boot, over MQTT say, is reported once
+and applied at the next boot.
+
+`entities` runs even when the YAML doesn't list it, for the claims.
+
+## Claims from other integrations
+
+An integration whose entities have unique ids has registry entries a person
+can edit in the UI. To keep those in git too, it claims them at setup, in the
+shape of `entities`' items:
+
+```python
+from custom_components.config_bridge import claim_entities
+
+claim_entities(hass, DOMAIN, {
+    "switch.kitchen_killswitch": {"area_id": "kitchen"},
+})
+```
+
+The bridge then pins them exactly as if the YAML listed them, and its reports
+name the integration that claimed each one. The data stays in that
+integration's own config; the bridge only enforces it.
+
+- **Claiming again** replaces the integration's previous claim. An entity it
+  no longer claims is released at the next boot.
+- **Timing:** claims are read once Home Assistant has started, so claim during
+  setup. A claim made later applies at the next boot.
+- **A bad item** raises `ValueError` from `claim_entities` straight away,
+  since it's a bug in the claiming integration.
+- **Without the bridge:** `claim_entities` imports no Home Assistant and needs
+  nothing set up, so it can be called either way. It only records the claim.
+  To know whether it will be applied, list `config_bridge` in the manifest's
+  `after_dependencies` and check `"config_bridge" in hass.config.components`.
+
 ## Getting started
 
 1. Add an empty `config_bridge:` block and restart. That loads the component
@@ -212,6 +312,7 @@ is written:
 ```
 custom_components/config_bridge/
 ├── __init__.py          CONFIG_SCHEMA and setup: wires the two halves together
+├── claims.py            claim_entities, for other integrations
 ├── lib/                 the engine every object type shares
 │   ├── object_type.py   ObjectType: how an object type is registered
 │   ├── kind.py          Kind: the interface an object type's HA side implements
@@ -220,6 +321,7 @@ custom_components/config_bridge/
 │   ├── diff.py          field-by-field diffs, with secrets redacted
 │   ├── plan.py          plans, and how reports render them
 │   ├── collection.py    exclusive and owned planning for keyed collections
+│   ├── claims.py        other integrations' items, merged with the YAML's
 │   ├── runner.py        error boundaries, repair issues, the export action
 │   └── ledger.py        the state object types keep between boots
 └── object_types/
@@ -253,7 +355,10 @@ Kind whose Home Assistant imports fail stops only its own object type.
    `KindError` if not. That turns a mismatch into a report instead of a bad
    write.
 4. **The registration:** `object_types/<name>/__init__.py` defines
-   `OBJECT_TYPE`, and `object_types/__init__.py` adds it to `OBJECT_TYPES`.
+   `OBJECT_TYPE`, and `object_types/__init__.py` adds it to `OBJECT_TYPES`. Its place in
+   `OBJECT_TYPES` is the order it runs in. Set `runs_unlisted=True` on an
+   object type that has work to do without YAML, as `entities` does for
+   claims.
 
 ## What it depends on
 
@@ -263,6 +368,7 @@ Kind whose Home Assistant imports fail stops only its own object type.
 | `mqtt` | `hass.config_entries`; MQTT entry version 2.1 |
 | `network` | `components.network.network.async_get_network`; storage version 1 |
 | `areas` | the area, floor and label registries (public helpers) |
+| `entities` | the entity, area and label registries (public helpers); entity aliases as a list holding `COMPUTED_NAME` |
 
 When an object type reports because one of these differs, its repair issue
 names what differs. The integration tests run against the Home Assistant

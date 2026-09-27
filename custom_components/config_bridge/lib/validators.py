@@ -93,18 +93,31 @@ def keyed_by_slug(item_schema: Validator) -> Validator:
 
     Errors carry the key in their path, so a report points at the item.
     """
+    return _keyed_by(slug, "id", item_schema)
 
+
+def keyed_by_entity_id(item_schema: Validator) -> Validator:
+    """A mapping whose keys are entity ids, checked and lowercased as
+    `cv.entity_id` would. Errors carry the key in their path."""
+    return _keyed_by(entity_id, "entity id", item_schema)
+
+
+def _keyed_by(key_schema: Validator, what: str, item_schema: Validator) -> Validator:
     def validate(value: Any) -> dict[str, Any]:
         if value is None:
             return {}
         if not isinstance(value, Mapping):
-            raise probatio.Invalid("expected a mapping of id to settings")
+            raise probatio.Invalid(f"expected a mapping keyed by {what}")
         validated: dict[str, Any] = {}
         for key, item in value.items():
             try:
-                item_id = slug(key)
+                item_id = key_schema(key)
             except probatio.Invalid as err:
                 raise probatio.Invalid(err.msg, path=[key]) from err
+            if item_id in validated:
+                # Two spellings that normalise to one key, e.g. entity ids
+                # differing only in case: one would silently win.
+                raise probatio.Invalid(f"{item_id} is listed twice", path=[key])
             try:
                 validated[item_id] = item_schema(item)
             except probatio.MultipleInvalid as err:
