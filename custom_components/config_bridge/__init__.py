@@ -7,7 +7,7 @@ and registries, where they are set from the UI. This integration reads a
 It has two halves:
 
 - `object_types/`: one package per thing the bridge manages (`http`, `mqtt`,
-  `network`, `areas`, `devices`, `entities`), each with its schema and
+  `influxdb`, `network`, `areas`, `devices`, `entities`), each with its schema and
   decisions in `model.py` and the code that reads and writes Home Assistant
   in `kind.py`.
 - `lib/`: what they share: the runner and its error boundaries, plans,

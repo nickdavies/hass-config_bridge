@@ -115,6 +115,7 @@ async def test_export_returns_every_object_type_in_yaml_shape(
     assert set(exported) == {
         "http",
         "mqtt",
+        "influxdb",
         "network",
         "areas",
         "devices",
@@ -125,5 +126,6 @@ async def test_export_returns_every_object_type_in_yaml_shape(
         "items": {"kitchen": {"name": "Kitchen", "icon": "mdi:stove"}},
     }
     assert exported["mqtt"] == {}
+    assert exported["influxdb"] == {}
     assert exported["http"] == {}
     assert exported["network"]["adapters"] == []

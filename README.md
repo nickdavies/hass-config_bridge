@@ -5,8 +5,9 @@ somewhere else.
 
 Home Assistant keeps some settings only in config entries, private
 `.storage` files and registries, where they are set from the UI and are not
-reviewable, reproducible or in git: MQTT's broker connection, the HTTP
-server's settings, the network adapters discovery listens on, areas, and
+reviewable, reproducible or in git: MQTT's broker connection, InfluxDB's
+connection, the HTTP server's settings, the network adapters discovery
+listens on, areas, and
 what a person can change about a device or an entity (its name, area, labels,
 whether it is disabled, and for an entity its id, icon, aliases and whether
 it is hidden).
@@ -26,6 +27,11 @@ config_bridge:
     broker: mosquitto.automation.svc.cluster.local
     username: !secret mqtt_username
     password: !secret mqtt_password
+  influxdb:
+    url: http://influxdb.observability.svc.cluster.local:8086
+    organization: "0123456789abcdef"
+    bucket: homeassistant
+    token: !secret influxdb_token
   network:
     adapters:
       - eth0
@@ -153,6 +159,49 @@ write in two cases:
 
 - **MQTT's config entry version isn't 2.1:** the version this was written
   against.
+- **The live entry has settings the bridge doesn't know:** replacing the entry
+  would delete them.
+
+### `influxdb`
+
+The InfluxDB connection entry. Home Assistant is removing InfluxDB's YAML
+connection keys (`host`, `token`, `bucket` and the rest), so the connection now
+lives in a config entry. InfluxDB allows only one entry, so an existing one,
+whether made in the UI or imported from the old YAML, is adopted and updated
+in place. An entry is created only if none exists.
+
+| setting | default |
+|---|---|
+| `url` | required, e.g. `http://influxdb:8086` |
+| `token` | required; an API token with write access to the bucket |
+| `organization` | required; the organization's ID, quoted so YAML keeps it a string (InfluxDB 3 ignores it, but it has to be set) |
+| `bucket` | required; for InfluxDB 3, the database |
+| `verify_ssl` | `true` |
+| `ssl_ca_cert` | unset; a path to a CA certificate file |
+
+Only the 2.x API is configured, which covers InfluxDB 2.x and InfluxDB 3. A
+1.x entry is replaced by a 2.x one.
+
+What gets written to InfluxDB (`include`, `exclude`, `tags`,
+`measurement_attr` and the other options) stays under Home Assistant's own
+`influxdb:` key, which InfluxDB reads at setup. The bridge doesn't touch it.
+Leave the connection keys out of that block. If they're there, Home
+Assistant imports them and raises its own deprecation repair.
+
+Home Assistant tries to import an `influxdb:` block whenever no entry exists.
+With no connection keys in the block, that import aims at `localhost` and
+fails. So on the boot that first adds both the bridge's entry and the
+`influxdb:` block, Home Assistant may raise an "import failed" repair. It
+clears at the next restart: by then the entry exists and Home Assistant
+doesn't import again.
+
+InfluxDB doesn't reload itself when its entry changes, so the bridge reloads
+it, and a change applies on the same boot. The bridge refuses to write in
+two cases:
+
+- **InfluxDB's config entry version isn't 1.1:** the version this was written
+  against. Checking it imports InfluxDB's config flow, so the bridge installs
+  InfluxDB's requirements first, as loading InfluxDB would.
 - **The live entry has settings the bridge doesn't know:** replacing the entry
   would delete them.
 
@@ -426,6 +475,7 @@ Kind whose Home Assistant imports fail stops only its own object type.
 |---|---|
 | `http` | `components.http.config`: the store, storage version 2.2 |
 | `mqtt` | `hass.config_entries`; MQTT entry version 2.1 |
+| `influxdb` | `hass.config_entries`; InfluxDB entry version 1.1, read from its config flow |
 | `network` | `components.network.network.async_get_network`; storage version 1 |
 | `areas` | the area, floor and label registries (public helpers) |
 | `devices` | the device, area and label registries (public helpers); `async_get_devices`, since identifiers are unique only per config entry |
@@ -446,7 +496,7 @@ pytest and probatio. The integration tests need Python
 deploys.
 
 ```sh
-pip install pytest probatio==0.11.4 pytest-homeassistant-custom-component==0.13.365 tzdata ruff==0.16.8
+pip install pytest probatio==0.11.4 pytest-homeassistant-custom-component==0.13.365 tzdata influxdb==5.3.2 influxdb-client==1.50.0 ruff==0.16.8
 python -m pytest tests/ -c tests/pytest.ini
 python -m pytest tests_integration/ -c tests_integration/pytest.ini
 ruff check custom_components/ tests/ tests_integration/

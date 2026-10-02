@@ -18,6 +18,12 @@ HOMELAB = {
         "username": "hass",
         "password": "secret",
     },
+    "influxdb": {
+        "url": "http://influxdb.observability.svc.cluster.local:8086",
+        "token": "secret",
+        "organization": "0123456789abcdef",
+        "bucket": "homeassistant",
+    },
     "network": {"adapters": ["eth0", "192.168.20.0/24"]},
     "areas": {
         "mode": "exclusive",
@@ -38,6 +44,7 @@ def test_every_object_type_is_registered() -> None:
     assert list(OBJECT_TYPES) == [
         "http",
         "mqtt",
+        "influxdb",
         "network",
         "areas",
         "devices",
