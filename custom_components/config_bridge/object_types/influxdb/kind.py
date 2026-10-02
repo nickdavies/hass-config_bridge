@@ -4,6 +4,7 @@ InfluxDB allows a single config entry, so the domain is the identity: an
 entry created in the UI, or imported from the old YAML connection keys, is
 adopted and updated in place, and one is created only if there is none.
 The whole entry is replaced: `data` and title.
+Switching between the 1.x and 2.x API is an update like any other.
 
 Unlike MQTT, InfluxDB registers no update listener, so a set-up entry is
 reloaded here after it is updated.

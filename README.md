@@ -28,10 +28,10 @@ config_bridge:
     username: !secret mqtt_username
     password: !secret mqtt_password
   influxdb:
-    url: http://influxdb.observability.svc.cluster.local:8086
-    organization: "0123456789abcdef"
-    bucket: homeassistant
-    token: !secret influxdb_token
+    url: http://influxdb2.observability.svc.cluster.local:8086
+    database: homeassistant
+    username: homeassistant
+    password: !secret influxdb_password
   network:
     adapters:
       - eth0
@@ -170,17 +170,40 @@ lives in a config entry. InfluxDB allows only one entry, so an existing one,
 whether made in the UI or imported from the old YAML, is adopted and updated
 in place. An entry is created only if none exists.
 
+Its keys pick the API. For the 2.x API (InfluxDB 2.x, or InfluxDB 3):
+
 | setting | default |
 |---|---|
 | `url` | required, e.g. `http://influxdb:8086` |
 | `token` | required; an API token with write access to the bucket |
 | `organization` | required; the organization's ID, quoted so YAML keeps it a string (InfluxDB 3 ignores it, but it has to be set) |
 | `bucket` | required; for InfluxDB 3, the database |
+
+For the 1.x API (InfluxDB 1.x, or InfluxDB 2.x through a v1 user, whose
+password can be chosen where a 2.x token can't):
+
+| setting | default |
+|---|---|
+| `url` | required; split into host, port, `ssl` and path as InfluxDB's own dialog does |
+| `database` | required; for InfluxDB 2.x, the bucket's name |
+| `username`, `password` | unset; together or not at all |
+
+And for either:
+
+| setting | default |
+|---|---|
 | `verify_ssl` | `true` |
 | `ssl_ca_cert` | unset; a path to a CA certificate file |
 
-Only the 2.x API is configured, which covers InfluxDB 2.x and InfluxDB 3. A
-1.x entry is replaced by a 2.x one.
+```yaml
+influxdb:
+  url: http://influxdb2.observability.svc.cluster.local:8086
+  database: homeassistant
+  username: homeassistant
+  password: !secret influxdb_password
+```
+
+An entry on the other API is replaced when the YAML switches.
 
 What gets written to InfluxDB (`include`, `exclude`, `tags`,
 `measurement_attr` and the other options) stays under Home Assistant's own

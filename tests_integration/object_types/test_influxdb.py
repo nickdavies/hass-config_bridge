@@ -176,3 +176,84 @@ async def test_report_never_shows_the_token(
     changes = report(hass, "influxdb").translation_placeholders["changes"]
     assert "token: changed (<redacted>)" in changes
     assert "hunter2" not in changes
+
+
+# --- the 1.x API, and the flows' own shapes ------------------------------------
+
+V1_YAML = {
+    "url": "http://influxdb2.observability.svc.cluster.local:8086",
+    "database": "homeassistant",
+    "username": "homeassistant",
+    "password": "hunter2",
+}
+
+
+async def test_switches_a_v2_entry_to_v1(
+    hass: HomeAssistant, setup_bridge: SetupBridge
+) -> None:
+    existing = MockConfigEntry(**UI_ENTRY)
+    existing.add_to_hass(hass)
+
+    await setup_bridge({"influxdb": V1_YAML})
+
+    entry = only_entry(hass)
+    assert entry.entry_id == existing.entry_id
+    assert entry.title == "homeassistant (influxdb2.observability.svc.cluster.local)"
+    assert entry.data["api_version"] == "1"
+    assert "token" not in entry.data
+    assert report(hass, "influxdb") is None
+
+
+async def _entry_from_the_flow(hass: HomeAssistant, step: str, user_input: dict):
+    """What InfluxDB's own config flow stores for this input."""
+    with (
+        patch(
+            "homeassistant.components.influxdb.config_flow."
+            "_validate_influxdb_connection",
+            AsyncMock(return_value={}),
+        ),
+        patch(
+            "homeassistant.config_entries.ConfigEntries.async_setup",
+            AsyncMock(return_value=True),
+        ),
+    ):
+        result = await hass.config_entries.flow.async_init(
+            "influxdb", context={"source": "user"}
+        )
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {"next_step_id": step}
+        )
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], user_input
+        )
+    assert result["type"] == "create_entry", result
+    return only_entry(hass)
+
+
+async def test_v1_rendering_is_what_the_flow_stores(
+    hass: HomeAssistant, setup_bridge: SetupBridge
+) -> None:
+    flow_entry = await _entry_from_the_flow(
+        hass, "configure_v1", {**V1_YAML, "verify_ssl": True}
+    )
+    modified_at = flow_entry.modified_at
+
+    await setup_bridge({"influxdb": V1_YAML})
+
+    # In sync: the bridge found nothing to change.
+    assert only_entry(hass).modified_at == modified_at
+    assert report(hass, "influxdb") is None
+
+
+async def test_v2_rendering_is_what_the_flow_stores(
+    hass: HomeAssistant, setup_bridge: SetupBridge
+) -> None:
+    flow_entry = await _entry_from_the_flow(
+        hass, "configure_v2", {**YAML, "verify_ssl": True}
+    )
+    modified_at = flow_entry.modified_at
+
+    await setup_bridge({"influxdb": YAML})
+
+    assert only_entry(hass).modified_at == modified_at
+    assert report(hass, "influxdb") is None
