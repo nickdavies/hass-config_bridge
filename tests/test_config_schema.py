@@ -33,6 +33,19 @@ HOMELAB = {
         "items": {"mqtt": {"zigbee2mqtt_0x001788010c6f92e4": {"area_id": "dining"}}}
     },
     "entities": {"items": {"light.kitchen_lights_all": {"area_id": "kitchen"}}},
+    "energy": {
+        "energy_sources": [
+            {
+                "type": "grid",
+                "stat_energy_from": "sensor.xcel_grid_current_summation_delivered_value",
+                "stat_energy_to": "sensor.xcel_grid_current_summation_received_value",
+            },
+            {
+                "type": "solar",
+                "stat_energy_from": "sensor.xcel_solar_current_summation_delivered_value",
+            },
+        ]
+    },
 }
 
 
@@ -49,6 +62,7 @@ def test_every_object_type_is_registered() -> None:
         "areas",
         "devices",
         "entities",
+        "energy",
     ]
 
 

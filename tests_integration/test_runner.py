@@ -120,6 +120,7 @@ async def test_export_returns_every_object_type_in_yaml_shape(
         "areas",
         "devices",
         "entities",
+        "energy",
     }
     assert exported["areas"] == {
         "mode": "exclusive",

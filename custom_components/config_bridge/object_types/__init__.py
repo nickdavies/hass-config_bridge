@@ -18,7 +18,7 @@ from collections.abc import Mapping
 from typing import Final
 
 from ..lib.object_type import ObjectType
-from . import areas, devices, entities, http, influxdb, mqtt, network
+from . import areas, devices, energy, entities, http, influxdb, mqtt, network
 
 OBJECT_TYPES: Final[Mapping[str, ObjectType]] = {
     object_type.name: object_type
@@ -30,5 +30,6 @@ OBJECT_TYPES: Final[Mapping[str, ObjectType]] = {
         areas.OBJECT_TYPE,
         devices.OBJECT_TYPE,
         entities.OBJECT_TYPE,
+        energy.OBJECT_TYPE,
     )
 }

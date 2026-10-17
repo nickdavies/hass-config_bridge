@@ -7,7 +7,7 @@ Home Assistant keeps some settings only in config entries, private
 `.storage` files and registries, where they are set from the UI and are not
 reviewable, reproducible or in git: MQTT's broker connection, InfluxDB's
 connection, the HTTP server's settings, the network adapters discovery
-listens on, areas, and
+listens on, areas, the energy dashboard's meters, and
 what a person can change about a device or an entity (its name, area, labels,
 whether it is disabled, and for an entity its id, icon, aliases and whether
 it is hidden).
@@ -56,6 +56,13 @@ config_bridge:
     items:
       light.kitchen_lights_all:
         area_id: kitchen
+  energy:
+    energy_sources:
+      - type: grid
+        stat_energy_from: sensor.grid_import_energy
+        stat_energy_to: sensor.grid_export_energy
+      - type: solar
+        stat_energy_from: sensor.solar_energy
 ```
 
 It is ordinary YAML, so `!secret`, `!include` and packages all work. The
@@ -76,7 +83,7 @@ at boot, inside its own error boundary, and ends up in one of three states:
 Object types run in a fixed order, whatever order the YAML lists them in.
 Those that wait for Home Assistant to start run one after another, so one can
 rely on what an earlier one wrote: `devices` and `entities` on the areas
-`areas` made.
+`areas` made, and `energy` on the entity ids `entities` pinned.
 
 An object type reports instead of applying in three cases:
 
@@ -390,6 +397,64 @@ and applied at the next boot.
 
 `entities` runs even when the YAML doesn't list it, for the claims.
 
+### `energy`
+
+The energy dashboard's preferences: Settings → Dashboards → Energy. The YAML
+is the whole set, in the shape Home Assistant stores it, so the keys are the
+ones `config_bridge.export` returns.
+
+```yaml
+energy:
+  energy_sources:                   # in the order the dashboard shows them
+    - type: grid
+      stat_energy_from: sensor.grid_import_energy
+      stat_energy_to: sensor.grid_export_energy
+      stat_rate: sensor.grid_power  # positive importing, negative exporting
+      number_energy_price: 0.12     # or entity_energy_price, or stat_cost
+      number_energy_price_export: 0.04
+    - type: solar
+      stat_energy_from: sensor.solar_energy
+      stat_rate: sensor.solar_power
+  device_consumption:
+    - stat_consumption: sensor.fridge_energy
+      name: Fridge
+  device_consumption_water: []
+```
+
+| source `type` | keys |
+|---|---|
+| `grid` | `stat_energy_from`, `stat_energy_to`, `stat_cost`, `entity_energy_price` or `number_energy_price`, `stat_compensation`, `entity_energy_price_export` or `number_energy_price_export`, `stat_rate` or `power_config`, `cost_adjustment_day` (default `0`), `name`; at least one meter or power sensor |
+| `solar` | `stat_energy_from` (required), `stat_rate`, `config_entry_solar_forecast`, `name` |
+| `battery` | `stat_energy_from` and `stat_energy_to` (required), `stat_rate` or `power_config`, `stat_soc`, `capacity`, `name` |
+| `gas`, `water` | `stat_energy_from` (required), `stat_rate`, `stat_cost`, `entity_energy_price` or `number_energy_price`, `name` |
+
+A device takes `stat_consumption` (required), `stat_rate`, `name` and
+`included_in_stat`. A `stat_*` key is an entity id or an external statistic
+(`source:id`). `power_config` is one of `stat_rate`, `stat_rate_inverted`, or
+`stat_rate_from` with `stat_rate_to`; Home Assistant makes a sensor for the
+last two and points the source's `stat_rate` at it.
+
+A list left out is empty, so a dashboard set up in the UI and not in the YAML
+is cleared. A source is stored with every key its type always has, set to
+null when the YAML leaves it out, exactly as the energy dialogs save it, so a
+dashboard set up in the UI and the same one in the YAML are in sync.
+`config_entry_solar_forecast` lists config entry ids, which change when the
+forecast integration is set up again.
+
+The preferences are written through the same call the energy page's save
+makes, once Home Assistant has started and after `entities`. The cost sensors
+energy makes for a price appear on the same boot. Before anything is written,
+the rendered preferences have to pass Home Assistant's own energy schemas,
+which know rules the YAML's schema doesn't, such as a meter used by two grid
+connections. It also reports:
+
+- when the energy integration isn't loaded (it is part of `default_config:`)
+- when a live source or device has a key the bridge doesn't know, since
+  replacing the lists would delete it
+
+Whether each statistic exists isn't checked. The energy dashboard reports a
+missing or misconfigured one itself.
+
 ## Claims from other integrations
 
 An integration whose entities have unique ids, or that has devices, has
@@ -503,6 +568,7 @@ Kind whose Home Assistant imports fail stops only its own object type.
 | `areas` | the area, floor and label registries (public helpers) |
 | `devices` | the device, area and label registries (public helpers); `async_get_devices`, since identifiers are unique only per config entry |
 | `entities` | the entity, area and label registries (public helpers); entity aliases as a list holding `COMPUTED_NAME` |
+| `energy` | `components.energy.data`: the energy manager and its schemas, storage version 1.3; `energy.helpers.generate_power_sensor_entity_id` |
 
 When an object type reports because one of these differs, its repair issue
 names what differs. The integration tests run against the Home Assistant
