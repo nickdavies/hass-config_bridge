@@ -1,5 +1,5 @@
-"""Integration fixtures — a real Home Assistant, via
-pytest-homeassistant-custom-component, pinned to the version homelab deploys.
+"""Integration fixtures — a real Home Assistant, via pytest-homeassistant,
+pinned to the version homelab deploys.
 
 The unit tests cover the decisions. These cover what only a running Home
 Assistant can show: that the Kinds read and write the real stores and
@@ -30,9 +30,9 @@ SetupBridge = Callable[[dict[str, Any]], Awaitable[None]]
 def _ensure_custom_components_path() -> None:
     """Put this project's custom_components on the namespace path.
 
-    pytest-homeassistant-custom-component points the `custom_components`
-    namespace package at its own testing_config directory, so without this the
-    component under test is invisible.
+    pytest-homeassistant points the `custom_components` namespace package at
+    its own testing_config directory, so without this the component under test
+    is invisible.
     """
     import custom_components
 

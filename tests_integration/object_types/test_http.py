@@ -20,7 +20,7 @@ from homeassistant.components.http.config import (
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
-from pytest_homeassistant_custom_component.common import (
+from pytest_homeassistant.common import (
     async_fire_time_changed,
     async_mock_service,
 )
