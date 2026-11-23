@@ -29,6 +29,12 @@ from ...lib.validators import ensure_list, ip_network, port, string
 
 # --- the YAML ----------------------------------------------------------------
 
+SSL_PROFILES: Final = ("intermediate_v6", "modern_v6", "intermediate_v4", "modern_v4")
+"""Home Assistant's SSL profiles (`homeassistant.util.ssl.SSLProfile`), by
+value. The unversioned `intermediate` and `modern` of older YAML aren't
+accepted: the store only takes these. The Kind checks Home Assistant still
+has exactly these before trusting the YAML."""
+
 
 def _forwarded_for_needs_proxies(conf: dict[str, Any]) -> dict[str, Any]:
     """HA's settings page refuses this pair, and so would the store."""
@@ -61,7 +67,7 @@ SCHEMA: Final = probatio.All(
                 probatio.All(probatio.Coerce(int), probatio.Range(min=0)), -1
             ),
             probatio.Optional("ip_ban_enabled"): probatio.Boolean(),
-            probatio.Optional("ssl_profile"): probatio.In(["intermediate", "modern"]),
+            probatio.Optional("ssl_profile"): probatio.In(SSL_PROFILES),
             probatio.Optional("use_x_frame_options"): probatio.Boolean(),
         }
     ),
@@ -73,7 +79,7 @@ in its defaults."""
 
 # --- the store ---------------------------------------------------------------
 
-# The store's own vocabulary, at storage version 2.2. The Kind checks Home
+# The store's own vocabulary, at storage version 3.1. The Kind checks Home
 # Assistant uses these exact values before trusting any decision made here.
 ACTIVE_STABLE: Final = "stable"
 ACTIVE_PENDING: Final = "pending"

@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock, patch
 
 from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntryState
 from homeassistant.core import HomeAssistant
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant.common import MockConfigEntry
 
 from custom_components.config_bridge.object_types.mqtt.model import (
     DEFAULT_BIRTH,

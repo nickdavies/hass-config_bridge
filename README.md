@@ -561,7 +561,7 @@ Kind whose Home Assistant imports fail stops only its own object type.
 
 | object type | Home Assistant internal |
 |---|---|
-| `http` | `components.http.config`: the store, storage version 2.2 |
+| `http` | `components.http.config`: the store, storage version 3.1; `util.ssl.SSLProfile`, the profiles `ssl_profile` takes |
 | `mqtt` | `hass.config_entries`; MQTT entry version 2.1 |
 | `influxdb` | `hass.config_entries`; InfluxDB entry version 1.1, read from its config flow |
 | `network` | `components.network.network.async_get_network`; storage version 1 |
@@ -585,7 +585,7 @@ pytest and probatio. The integration tests need Python
 deploys.
 
 ```sh
-pip install pytest probatio==0.11.4 pytest-homeassistant-custom-component==0.13.365 tzdata influxdb==5.3.2 influxdb-client==1.50.0 ruff==0.16.8
+pip install pytest probatio==0.13.0 pytest-homeassistant==2026.11.2 tzdata influxdb==5.3.2 influxdb-client==1.50.0 ruff==0.16.8
 python -m pytest tests/ -c tests/pytest.ini
 python -m pytest tests_integration/ -c tests_integration/pytest.ini
 ruff check custom_components/ tests/ tests_integration/

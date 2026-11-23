@@ -20,7 +20,7 @@ from homeassistant.components.http.config import (
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
-from pytest_homeassistant_custom_component.common import (
+from pytest_homeassistant.common import (
     async_fire_time_changed,
     async_mock_service,
 )
@@ -199,13 +199,70 @@ async def test_unfamiliar_store_version_reports_instead_of_writing(
 ) -> None:
     store = await boot(hass)
 
-    with patch("homeassistant.components.http.config.STORAGE_MINOR_VERSION", 3):
+    with patch("homeassistant.components.http.config.STORAGE_MINOR_VERSION", 2):
         await setup_bridge({"http": YAML})
 
     assert store.pending is None
     issue = report(hass, "http")
     assert issue is not None
-    assert "version 2.3" in issue.translation_placeholders["reason"]
+    assert "version 3.2" in issue.translation_placeholders["reason"]
+
+
+async def test_an_ssl_profile_from_the_yaml_is_in_sync_once_stored(
+    hass: HomeAssistant, setup_bridge: SetupBridge
+) -> None:
+    # The store holds profiles as SSLProfile members, the YAML as strings.
+    settings = {**YAML, "ssl_profile": "modern_v6"}
+    store = await boot(hass, stable=settings)
+
+    await setup_bridge({"http": settings})
+
+    assert store.pending is None
+    assert report(hass, "http") is None
+
+
+async def test_a_store_migrated_from_2_2_is_in_sync_with_the_same_yaml(
+    hass: HomeAssistant, setup_bridge: SetupBridge, hass_storage: dict[str, Any]
+) -> None:
+    # A 2.2 store as Home Assistant 2026.9 wrote it from this YAML. Without a
+    # certificate, the migration moves "modern" to the default profile, which
+    # is what the YAML leaves out, so the upgrade boot stages nothing.
+    stable = {
+        **full(YAML),
+        "ssl_profile": "modern",
+        "created_at": "2026-09-17T01:34:59.662546+00:00",
+        "error": None,
+        "error_message": None,
+    }
+    hass_storage["http"] = {
+        "version": 2,
+        "minor_version": 2,
+        "key": "http",
+        "data": {"stable": stable, "pending": None, "yaml_migration_done": True},
+    }
+    store = await boot(hass)
+
+    await setup_bridge({"http": YAML})
+
+    assert store.pending is None
+    assert report(hass, "http") is None
+
+
+async def test_unfamiliar_ssl_profiles_report_instead_of_writing(
+    hass: HomeAssistant, setup_bridge: SetupBridge
+) -> None:
+    store = await boot(hass)
+
+    with patch(
+        "custom_components.config_bridge.object_types.http.model.SSL_PROFILES",
+        ("intermediate_v6", "modern_v6"),
+    ):
+        await setup_bridge({"http": YAML})
+
+    assert store.pending is None
+    issue = report(hass, "http")
+    assert issue is not None
+    assert "SSL profiles" in issue.translation_placeholders["reason"]
 
 
 async def test_discards_a_leftover_failed_trial(

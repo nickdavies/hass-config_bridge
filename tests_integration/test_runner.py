@@ -22,7 +22,7 @@ HTTP = {"use_x_forwarded_for": True, "trusted_proxies": ["10.244.0.0/16"]}
 async def test_an_object_type_whose_ha_moved_under_it_does_not_stop_the_others(
     hass: HomeAssistant, setup_bridge: SetupBridge
 ) -> None:
-    with patch("homeassistant.components.http.config.STORAGE_VERSION", 3):
+    with patch("homeassistant.components.http.config.STORAGE_VERSION", 4):
         await setup_bridge({"http": HTTP, "areas": AREAS})
 
     assert report(hass, "http") is not None
