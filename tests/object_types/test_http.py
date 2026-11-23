@@ -161,3 +161,10 @@ def test_login_threshold_accepts_the_disabled_sentinel() -> None:
     assert SCHEMA({"login_attempts_threshold": -1})["login_attempts_threshold"] == -1
     with pytest.raises(probatio.Invalid):
         SCHEMA({"login_attempts_threshold": -2})
+
+
+def test_ssl_profile_takes_only_the_versioned_names() -> None:
+    # The store refuses the unversioned names, so CI must too.
+    assert SCHEMA({"ssl_profile": "modern_v6"})["ssl_profile"] == "modern_v6"
+    with pytest.raises(probatio.Invalid):
+        SCHEMA({"ssl_profile": "modern"})

@@ -27,7 +27,7 @@ from ...lib.plan import Plan, Step
 from . import model
 from .model import HttpAction, HttpDecision
 
-STORE_VERSION: Final = (2, 2)
+STORE_VERSION: Final = (3, 1)
 """The `.storage/http` version this Kind was written against."""
 
 RESTAGED: Final = "restaged"
@@ -67,6 +67,16 @@ def _store_api() -> ModuleType:
         raise KindError(
             f"Home Assistant's HTTP config store reports unfamiliar slots: "
             f"{sorted(active_types)}."
+        )
+    # The YAML schema accepts these profiles, so it must be HA's exact set:
+    # a profile HA dropped would be stored and fail its load.
+    from homeassistant.util.ssl import SSLProfile  # noqa: PLC0415
+
+    profiles = {member.value for member in SSLProfile}
+    if profiles != set(model.SSL_PROFILES):
+        raise KindError(
+            f"Home Assistant's SSL profiles are {sorted(profiles)}, not the "
+            f"{sorted(model.SSL_PROFILES)} this bridge was written against."
         )
     return http_config
 

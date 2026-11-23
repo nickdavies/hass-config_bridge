@@ -561,7 +561,7 @@ Kind whose Home Assistant imports fail stops only its own object type.
 
 | object type | Home Assistant internal |
 |---|---|
-| `http` | `components.http.config`: the store, storage version 2.2 |
+| `http` | `components.http.config`: the store, storage version 3.1; `util.ssl.SSLProfile`, the profiles `ssl_profile` takes |
 | `mqtt` | `hass.config_entries`; MQTT entry version 2.1 |
 | `influxdb` | `hass.config_entries`; InfluxDB entry version 1.1, read from its config flow |
 | `network` | `components.network.network.async_get_network`; storage version 1 |
